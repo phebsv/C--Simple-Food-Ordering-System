@@ -1,4 +1,4 @@
-﻿import logo from "../assets/logo1.png";
+import logo from "../assets/logo1.png";
 
 interface NomNomLogoProps {
   size?: "sm" | "md" | "lg";

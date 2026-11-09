@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
@@ -23,7 +23,7 @@ export default function AdminInventory() {
     inventoryItems,
     fetchInventory,
     updateStock,
-    updateInventoryStatus,
+    setItemAvailable,
     loading,
     error,
     setError,
@@ -40,7 +40,7 @@ export default function AdminInventory() {
 
   useEffect(() => {
     fetchInventory();
-  }, []);
+  }, [fetchInventory]);
 
   // ==================== FILTERING ====================
   const filteredItems = useMemo(() => {
@@ -85,7 +85,8 @@ export default function AdminInventory() {
   const handleStatusChange = async (itemId: string, newStatus: string) => {
     try {
       setActionLoading(true);
-      await updateInventoryStatus(itemId, newStatus);
+      // Only availability can be chosen; "Low Stock"/"Out of Stock" follow from the stock count.
+      await setItemAvailable(itemId, newStatus !== "Unavailable");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status");
     } finally {
@@ -196,7 +197,9 @@ export default function AdminInventory() {
                       />
                     </td>
                     <td className="last-updated">
-                      {new Date(item.lastUpdated).toLocaleDateString()}
+                      {item.lastUpdated
+                        ? new Date(item.lastUpdated).toLocaleDateString()
+                        : "-"}
                     </td>
                     <td>
                       <button
@@ -281,7 +284,10 @@ function StatusSelect({
   disabled,
   isOutOfStock,
 }: StatusSelectProps) {
+  // "Low Stock" and "Out of Stock" come from the stock count, so they are shown
+  // but can't be picked; the admin only chooses Available or Unavailable.
   const statuses = ["Available", "Low Stock", "Out of Stock", "Unavailable"];
+  const isDerived = (status: string) => status === "Low Stock" || status === "Out of Stock";
 
   return (
     <select
@@ -294,7 +300,7 @@ function StatusSelect({
         <option
           key={status}
           value={status}
-          disabled={isOutOfStock && status === "Available"}
+          disabled={isDerived(status) || (isOutOfStock && status === "Available")}
         >
           {status}
         </option>

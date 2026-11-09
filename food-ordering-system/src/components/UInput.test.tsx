@@ -1,7 +1,8 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import UInput, { MailIcon, LockIcon } from "../components/UInput";
+import UInput, { MailIcon } from "../components/UInput";
 
 describe("UInput Component", () => {
   it("renders with label and placeholder", () => {
@@ -81,31 +82,22 @@ describe("UInput Component", () => {
 
   it("maintains controlled value", async () => {
     const user = userEvent.setup();
-    let value = "";
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      value = e.target.value;
-    };
 
-    const { rerender } = render(
-      <UInput
-        label="Email"
-        placeholder="Enter email"
-        value={value}
-        onChange={handleChange}
-      />
-    );
+    function Controlled() {
+      const [value, setValue] = useState("");
+      return (
+        <UInput
+          label="Email"
+          placeholder="Enter email"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      );
+    }
 
+    render(<Controlled />);
     const input = screen.getByPlaceholderText("Enter email") as HTMLInputElement;
     await user.type(input, "test");
-
-    rerender(
-      <UInput
-        label="Email"
-        placeholder="Enter email"
-        value={value}
-        onChange={handleChange}
-      />
-    );
 
     expect(input.value).toBe("test");
   });

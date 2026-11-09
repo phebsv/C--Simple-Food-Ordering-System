@@ -1,4 +1,4 @@
-﻿import C from "../constants/colors";
+import C from "../constants/colors";
 import NomNomLogo from "./NomNomLogo";
 import burger from "../assets/burger1.png";
 

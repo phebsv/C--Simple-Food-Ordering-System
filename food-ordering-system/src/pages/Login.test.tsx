@@ -7,16 +7,11 @@ import Login from "./Login";
 
 vi.mock("../context/AuthContext", () => ({
   useAuth: () => ({
-    login: vi.fn().mockResolvedValue(false),
+    login: vi.fn().mockResolvedValue(null),
     loading: false,
     error: "",
   }),
-}));
-
-vi.mock("../context/AdminContext", () => ({
-  useAdmin: () => ({
-    login: vi.fn().mockResolvedValue(false),
-  }),
+  isAdminUser: () => false,
 }));
 
 describe("Login", () => {

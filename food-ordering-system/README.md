@@ -1,79 +1,42 @@
-# React + TypeScript + Vite
+# NomNom – Simple Food Ordering System
 
-This project contains a small food ordering app organized around reusable UI components.
+React + TypeScript (Vite) frontend with a small Node.js/Express backend that stores data in `src/services/db.json`.
 
-## Project Structure
+## Running locally
 
-- `src/components/admin` contains the admin dashboard UI pieces.
-- `src/components/user` contains the user dashboard UI.
-- `src/services` and `src/utils` hold the data access and helper logic for the admin dashboard.
+You need [Node.js](https://nodejs.org) 20+.
 
-Currently, two official plugins are available:
+```bash
+# 1. Install frontend and backend dependencies
+npm install
+npm install --prefix src/services
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+# 2. Start the backend (http://localhost:3001)
+npm run server
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# 3. In a second terminal, start the frontend (http://localhost:5173)
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+The frontend talks to `http://localhost:3001` by default. To use another backend, copy `.env.example` to `.env` and set `VITE_API_URL`.
+Set `JWT_SECRET` in the backend's environment for anything other than local development.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Scripts
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+| Command            | What it does                         |
+| ------------------ | ------------------------------------ |
+| `npm run dev`      | Start the frontend dev server        |
+| `npm run server`   | Start the Express backend            |
+| `npm run build`    | Type-check and build for production  |
+| `npm run lint`     | Run ESLint                           |
+| `npm test`         | Run the unit tests (Vitest)          |
+
+## Project structure
+
+- `src/pages` – customer pages (`user/`), admin pages (`admin/`), login and register
+- `src/components` – shared UI (navbar, inputs, buttons) and admin UI pieces
+- `src/context` – `AuthContext` (who is logged in), `CartContext`, `AdminContext` (admin data)
+- `src/services/api.ts` – the single HTTP client used by the whole frontend
+- `src/services/` (`server.js`, `routes/`) – the Express backend
+- `src/types.ts` – shared data types
+- `src/utils` – validation, formatting, storage and order helpers

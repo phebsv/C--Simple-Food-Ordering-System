@@ -1,6 +1,9 @@
 const jwt = require("jsonwebtoken");
 
-const SECRET = process.env.JWT_SECRET || "nomnom_secret_2024";
+const SECRET = process.env.JWT_SECRET || "nomnom_dev_secret";
+if (!process.env.JWT_SECRET) {
+  console.warn("JWT_SECRET is not set; using an insecure development secret.");
+}
 
 function generateToken(id, role) {
   return jwt.sign({ id, role }, SECRET, { expiresIn: "24h" });

@@ -2,172 +2,38 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
+import { addReview, getErrorMessage, getOrders, getReviews, updateOrderStatus } from "../../services/api";
+import type { Order, OrderItem, Review } from "../../types";
+import { findItemReview, sortNewestFirst } from "../../utils/orderHelpers";
+import { formatPricePHP } from "../../utils/textHelpers";
 import "./MyOrders.css";
-import type { Order } from "../../types";
-import { apiUrl } from "../../config/api";
-import { getStoredItem } from "../../utils/storage";
-import { addReview, getReviews } from "../../services/api";
 
 const ORDER_STATUSES = ["All", "Pending", "Preparing", "Ready", "Delivered"];
+const REFRESH_INTERVAL_MS = 5000;
+const MAX_REVIEW_LENGTH = 180;
 
-const formatPrice = (value?: number) => `₱${(value ?? 0).toFixed(2)}`;
+const STATUS_COLORS: Record<string, string> = {
+  Pending: "#FFC107",
+  Preparing: "#2196F3",
+  Ready: "#4CAF50",
+  Delivered: "#4CAF50",
+  Cancelled: "#F44336",
+};
+
 const formatDate = (value?: string) =>
   value ? new Date(value).toLocaleDateString() : "No date available";
 const displayValue = (value?: string) => value || "Not provided";
-const getOrderTime = (order: Order) =>
-  new Date(order.createdAt || order.updatedAt || 0).getTime() || 0;
-const isCancelledOrder = (order: Order) =>
-  ["cancelled", "canceled"].includes(String(order.status || "").toLowerCase());
 
-type OrderItem = Order["items"][number];
 type OrderModalMode = "details" | "reviews";
 
-type CurrentUser = {
-  id: string;
-  name?: string;
-  email?: string;
-};
-
-type ReviewLike = {
-  id?: string;
-  _id?: string;
-  reviewId?: string;
-  review_id?: string;
-  orderId?: string;
-  order_id?: string;
-  customerId?: string;
-  customer_id?: string;
-  userId?: string;
-  user_id?: string;
-  foodItemId?: string;
-  food_item_id?: string;
-  itemId?: string;
-  item_id?: string;
-  productId?: string;
-  product_id?: string;
-  foodItemName?: string;
-  food_item_name?: string;
-  itemName?: string;
-  item_name?: string;
-  productName?: string;
-  product_name?: string;
-  rating?: number | string;
-  comment?: string;
-  createdAt?: string;
-  created_at?: string;
-  updatedAt?: string;
-  updated_at?: string;
-  hidden?: boolean;
-};
-
-const readText = (...values: Array<unknown>) => {
-  const value = values.find((entry) => entry !== undefined && entry !== null);
-  return value === undefined || value === null ? "" : String(value);
-};
-
-const readReviewOrderId = (review?: ReviewLike | null) =>
-  review ? readText(review.orderId, review.order_id) : "";
-
-const readReviewCustomerId = (review?: ReviewLike | null) =>
-  review
-    ? readText(
-        review.customerId,
-        review.customer_id,
-        review.userId,
-        review.user_id,
-      )
-    : "";
-
-const readReviewItemId = (review?: ReviewLike | null) =>
-  review
-    ? readText(
-        review.foodItemId,
-        review.food_item_id,
-        review.itemId,
-        review.item_id,
-        review.productId,
-        review.product_id,
-      )
-    : "";
-
-const readReviewItemName = (review?: ReviewLike | null) =>
-  review
-    ? readText(
-        review.foodItemName,
-        review.food_item_name,
-        review.itemName,
-        review.item_name,
-        review.productName,
-        review.product_name,
-      )
-    : "";
-
-const readReviewComment = (review?: ReviewLike | null) =>
-  review?.comment?.trim() || "";
-
-const readReviewRating = (review?: ReviewLike | null) => {
-  const rating = Number(review?.rating);
-  return Number.isFinite(rating) ? Math.max(1, Math.min(5, rating)) : 0;
-};
-
-const getReviewList = (response: unknown): ReviewLike[] => {
-  if (Array.isArray(response)) return response as ReviewLike[];
-  if (response && typeof response === "object") {
-    const record = response as {
-      data?: unknown;
-      reviews?: unknown;
-      items?: unknown;
-    };
-    if (Array.isArray(record.data)) return record.data as ReviewLike[];
-    if (Array.isArray(record.reviews)) return record.reviews as ReviewLike[];
-    if (Array.isArray(record.items)) return record.items as ReviewLike[];
-  }
-  return [];
-};
-
-const getItemName = (item: OrderItem) => displayValue(item.name).toLowerCase();
-
-const isMatchingReview = (
-  review: ReviewLike,
-  order: Order,
-  item: OrderItem,
-) => {
-  if (review.hidden) return false;
-
-  const sameOrder = readReviewOrderId(review) === order.id;
-  const reviewItemId = readReviewItemId(review);
-  const sameItem = reviewItemId
-    ? reviewItemId === item.id
-    : readReviewItemName(review).toLowerCase() === getItemName(item);
-  const reviewCustomerId = readReviewCustomerId(review);
-  const sameCustomer =
-    !reviewCustomerId ||
-    !order.customerId ||
-    reviewCustomerId === order.customerId;
-
-  return sameOrder && sameItem && sameCustomer;
-};
-
-const findItemReview = (reviews: ReviewLike[], order: Order, item: OrderItem) =>
-  reviews.find((review) => isMatchingReview(review, order, item));
-
-const isOrderFullyReviewed = (reviews: ReviewLike[], order: Order) => {
-  const orderItems = order.items ?? [];
-  return (
-    order.status === "Delivered" &&
-    orderItems.length > 0 &&
-    orderItems.every((item) => findItemReview(reviews, order, item))
-  );
-};
+const isOrderFullyReviewed = (reviews: Review[], order: Order) =>
+  order.status === "Delivered" &&
+  order.items.length > 0 &&
+  order.items.every((item) => findItemReview(reviews, order.id, item.id));
 
 const renderStars = (rating: number) => {
-  const normalizedRating = Math.max(0, Math.min(5, Math.round(rating)));
-  return `${"★".repeat(normalizedRating)}${"☆".repeat(5 - normalizedRating)}`;
-};
-
-const getCurrentUser = (): CurrentUser | null => {
-  const user = getStoredItem("currentUser");
-  return user ? JSON.parse(user) : null;
+  const stars = Math.max(0, Math.min(5, Math.round(rating)));
+  return `${"★".repeat(stars)}${"☆".repeat(5 - stars)}`;
 };
 
 export default function MyOrders() {
@@ -177,11 +43,10 @@ export default function MyOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [currentUser] = useState<CurrentUser | null>(() => getCurrentUser());
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [selectedOrderMode, setSelectedOrderMode] =
-    useState<OrderModalMode>("details");
-  const [reviews, setReviews] = useState<ReviewLike[]>([]);
+  const [selectedOrderMode, setSelectedOrderMode] = useState<OrderModalMode>("details");
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
   const navigate = useNavigate();
   const previousStatusRef = useRef<Record<string, string>>({});
 
@@ -191,90 +56,40 @@ export default function MyOrders() {
     return () => window.clearTimeout(t);
   }, [toastMessage]);
 
-  const fetchOrders = async (
-    userId: string,
-    options: { showLoading?: boolean } = {},
-  ) => {
-    try {
-      if (options.showLoading) {
-        setLoading(true);
-      }
-      setError("");
-      const token = getStoredItem("customerToken");
-      if (!token) {
-        throw new Error("Please log in again to view your orders.");
-      }
-      const res = await fetch(apiUrl("/orders"), {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (!res.ok) throw new Error("Failed to fetch orders");
-      const data = await res.json();
-
-      // Filter orders for current customer
-      const customerOrders = data.filter(
-        (order: Order) =>
-          order.customerId === userId && !isCancelledOrder(order),
-      );
-
-      // Notify on status changes (poll-friendly)
-      const prev = previousStatusRef.current;
-      for (const o of customerOrders) {
-        const prevStatus = prev[o.id];
-        if (prevStatus && prevStatus !== o.status) {
-          setToastMessage(`Order ${o.id.slice(0, 8)} is now ${o.status}.`);
-          break;
-        }
-      }
-      previousStatusRef.current = Object.fromEntries(
-        customerOrders.map((o: Order) => [o.id, o.status]),
-      );
-
-      setOrders(customerOrders);
-    } catch (err) {
-      setOrders([]);
-      setError(
-        err instanceof Error ? err.message : "Failed to load your orders.",
-      );
-    } finally {
-      if (options.showLoading) {
-        setLoading(false);
-      }
-    }
-  };
-
-  const fetchReviews = async () => {
-    try {
-      const response = await getReviews();
-      setReviews(getReviewList(response));
-    } catch {
-      setReviews([]);
-    }
-  };
-
+  // Load orders and reviews, then poll orders so status changes show up.
   useEffect(() => {
-    if (!currentUser) {
-      navigate("/login");
-    }
-  }, [currentUser, navigate]);
+    let cancelled = false;
 
-  useEffect(() => {
-    if (currentUser?.id) {
-      const initialLoad = window.setTimeout(() => {
-        fetchOrders(currentUser.id, { showLoading: true });
-        fetchReviews();
-      }, 0);
-      // Refresh orders every 5 seconds to show updated status
-      const interval = window.setInterval(() => {
-        fetchOrders(currentUser.id);
-      }, 5000);
-      return () => {
-        window.clearTimeout(initialLoad);
-        window.clearInterval(interval);
-      };
-    }
-  }, [currentUser]);
+    const loadOrders = async () => {
+      try {
+        // The server only returns this customer's own orders.
+        const data = (await getOrders()).filter((order) => order.status !== "Cancelled");
+        if (cancelled) return;
+
+        const previous = previousStatusRef.current;
+        const changed = data.find((o) => previous[o.id] && previous[o.id] !== o.status);
+        if (changed) setToastMessage(`Order ${changed.id.slice(0, 8)} is now ${changed.status}.`);
+        previousStatusRef.current = Object.fromEntries(data.map((o) => [o.id, o.status]));
+
+        setOrders(data);
+        setError("");
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err, "Failed to load your orders."));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    loadOrders();
+    getReviews()
+      .then((data) => !cancelled && setReviews(data))
+      .catch(() => {});
+    const interval = window.setInterval(loadOrders, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, [reloadKey]);
 
   const filteredOrders = useMemo(() => {
     let filtered = orders;
@@ -283,7 +98,7 @@ export default function MyOrders() {
     if (searchQuery.trim()) {
       const query = searchQuery.trim().toLowerCase();
       filtered = filtered.filter((order) =>
-        (order.items ?? []).some((item) => getItemName(item).includes(query)),
+        order.items.some((item) => item.name.toLowerCase().includes(query)),
       );
     }
 
@@ -292,7 +107,7 @@ export default function MyOrders() {
       filtered = filtered.filter((order) => order.status === selectedStatus);
     }
 
-    return [...filtered].sort((a, b) => getOrderTime(b) - getOrderTime(a));
+    return sortNewestFirst(filtered);
   }, [orders, searchQuery, selectedStatus]);
 
   const openOrderModal = (order: Order, mode: OrderModalMode) => {
@@ -300,7 +115,7 @@ export default function MyOrders() {
     setSelectedOrderMode(mode);
   };
 
-  const handleReviewSaved = (review: ReviewLike) => {
+  const handleReviewSaved = (review: Review) => {
     setReviews((prev) => [...prev, review]);
   };
 
@@ -308,22 +123,7 @@ export default function MyOrders() {
     setOrders((prev) => prev.filter((order) => order.id !== orderId));
   };
 
-  const statusBadgeColor = (status: string) => {
-    switch (status) {
-      case "Pending":
-        return "#FFC107";
-      case "Preparing":
-        return "#2196F3";
-      case "Ready":
-        return "#4CAF50";
-      case "Delivered":
-        return "#4CAF50";
-      case "Cancelled":
-        return "#F44336";
-      default:
-        return "#999";
-    }
-  };
+  const statusBadgeColor = (status: string) => STATUS_COLORS[status] ?? "#999";
 
   return (
     <>
@@ -389,10 +189,10 @@ export default function MyOrders() {
               <h2>Couldn’t load orders</h2>
               <p>{error}</p>
               <button
-                onClick={() =>
-                  currentUser?.id &&
-                  fetchOrders(currentUser.id, { showLoading: true })
-                }
+                onClick={() => {
+                  setLoading(true);
+                  setReloadKey((key) => key + 1);
+                }}
                 className="my-orders-action-btn"
               >
                 Try Again
@@ -412,7 +212,7 @@ export default function MyOrders() {
           ) : (
             <div className="my-orders-list">
               {filteredOrders.map((order) => {
-                const orderItems = order.items ?? [];
+                const orderItems = order.items;
                 const canReviewOrder =
                   order.status === "Delivered" &&
                   orderItems.length > 0 &&
@@ -437,7 +237,7 @@ export default function MyOrders() {
                           {formatDate(order.createdAt)}
                         </p>
                         <p className="order-total">
-                          {formatPrice(order.total)}
+                          {formatPricePHP(order.total)}
                         </p>
                       </div>
                     </div>
@@ -467,7 +267,7 @@ export default function MyOrders() {
                           <>
                             {orderItems.slice(0, 2).map((item, idx) => (
                               <span key={idx} className="item-tag">
-                                {displayValue(item.name)} x{item.quantity ?? 0}
+                                {displayValue(item.name)} x{item.quantity}
                               </span>
                             ))}
                             {orderItems.length > 2 && (
@@ -529,8 +329,8 @@ function OrderDetailsModal({
 }: {
   order: Order;
   mode: OrderModalMode;
-  reviews: ReviewLike[];
-  onReviewSaved: (review: ReviewLike) => void;
+  reviews: Review[];
+  onReviewSaved: (review: Review) => void;
   onOrderCancelled: (orderId: string) => void;
   onClose: () => void;
 }) {
@@ -543,8 +343,7 @@ function OrderDetailsModal({
   const [reviewLoading, setReviewLoading] = useState(false);
   const [reviewError, setReviewError] = useState("");
   const [reviewSuccess, setReviewSuccess] = useState("");
-  const navigate = useNavigate();
-  const orderItems = order.items ?? [];
+  const orderItems = order.items;
   const canReview = order.status === "Delivered";
   const isReviewMode = mode === "reviews";
 
@@ -567,7 +366,7 @@ function OrderDetailsModal({
   }, []);
 
   const findExistingReview = (item: OrderItem) =>
-    findItemReview(reviews, order, item);
+    findItemReview(reviews, order.id, item.id);
 
   const startReview = (item: OrderItem) => {
     if (findExistingReview(item)) {
@@ -596,8 +395,8 @@ function OrderDetailsModal({
       return;
     }
 
-    if (cleanComment.length > 180) {
-      setReviewError("Please keep your review under 180 characters.");
+    if (cleanComment.length > MAX_REVIEW_LENGTH) {
+      setReviewError(`Please keep your review under ${MAX_REVIEW_LENGTH} characters.`);
       return;
     }
 
@@ -610,34 +409,20 @@ function OrderDetailsModal({
         return;
       }
 
-      const now = new Date().toISOString();
-      const reviewPayload = {
+      const createdReview = await addReview({
         orderId: order.id,
-        customerId: order.customerId,
-        customerName: order.customerName,
         foodItemId: reviewingItem.id,
-        foodItemName: reviewingItem.name,
         rating,
         comment: cleanComment,
-        createdAt: now,
-        updatedAt: now,
-        hidden: false,
-      };
-
-      const createdReview = await addReview(reviewPayload);
-      onReviewSaved({
-        ...reviewPayload,
-        ...createdReview,
       });
+      onReviewSaved(createdReview);
       setReviewSuccess("Thanks! Your review was submitted.");
 
       setReviewingItem(null);
       setComment("");
       setRating(5);
     } catch (err) {
-      setReviewError(
-        err instanceof Error ? err.message : "Failed to save review.",
-      );
+      setReviewError(getErrorMessage(err, "Failed to save review."));
     } finally {
       setReviewLoading(false);
     }
@@ -649,31 +434,11 @@ function OrderDetailsModal({
     setCancelLoading(true);
     setCancelError("");
     try {
-      const token = getStoredItem("customerToken");
-      if (!token) {
-        throw new Error("Please log in again to cancel your order.");
-      }
-      const res = await fetch(apiUrl(`/orders/${order.id}`), {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          status: "Cancelled",
-          updatedAt: new Date().toISOString(),
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to cancel order");
-
+      await updateOrderStatus(order.id, "Cancelled");
       onOrderCancelled(order.id);
       onClose();
-      navigate("/my-orders");
     } catch (err) {
-      setCancelError(
-        err instanceof Error ? err.message : "Failed to cancel order.",
-      );
+      setCancelError(getErrorMessage(err, "Failed to cancel order."));
     } finally {
       setCancelLoading(false);
     }
@@ -738,8 +503,8 @@ function OrderDetailsModal({
             ) : (
               orderItems.map((item, idx) => {
                 const existingReview = findExistingReview(item);
-                const reviewRating = readReviewRating(existingReview);
-                const reviewComment = readReviewComment(existingReview);
+                const reviewRating = existingReview?.rating ?? 0;
+                const reviewComment = existingReview?.comment.trim() ?? "";
 
                 return (
                   <div
@@ -750,7 +515,7 @@ function OrderDetailsModal({
                       <h4>{displayValue(item.name)}</h4>
                       {!isReviewMode && (
                         <p>
-                          Qty: {item.quantity ?? 0} x {formatPrice(item.price)}
+                          Qty: {item.quantity} x {formatPricePHP(item.price)}
                         </p>
                       )}
                       {existingReview ? (
@@ -780,7 +545,7 @@ function OrderDetailsModal({
                     </div>
                     {!isReviewMode && (
                       <span className="item-subtotal">
-                        {formatPrice((item.price ?? 0) * (item.quantity ?? 0))}
+                        {formatPricePHP(item.price * item.quantity)}
                       </span>
                     )}
                   </div>
@@ -848,11 +613,11 @@ function OrderDetailsModal({
                 <h3>Summary</h3>
                 <div className="detail-row">
                   <span>Subtotal:</span>
-                  <span>{formatPrice(order.subtotal)}</span>
+                  <span>{formatPricePHP(order.subtotal)}</span>
                 </div>
                 <div className="detail-row total-row">
                   <span>Total:</span>
-                  <span>{formatPrice(order.total)}</span>
+                  <span>{formatPricePHP(order.total)}</span>
                 </div>
               </div>
 

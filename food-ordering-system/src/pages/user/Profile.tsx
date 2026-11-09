@@ -1,138 +1,81 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
-import { apiUrl } from "../../config/api";
+import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage, getUser, updateUser } from "../../services/api";
+import type { AuthUser } from "../../types";
+import { validatePhoneNumber } from "../../utils/validationHelpers";
 import "./Profile.css";
-import {
-  getStoredItem,
-  removeStoredItem,
-  setStoredItem,
-} from "../../utils/storage";
 
 export default function Profile() {
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const { customer, updateCustomer, logout } = useAuth();
+  const navigate = useNavigate();
+  // Route guard guarantees a logged-in customer here.
+  const currentUser = customer as AuthUser;
+
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [name, setName] = useState(currentUser.name ?? "");
+  const [phone, setPhone] = useState(currentUser.phone ?? "");
+  const [address, setAddress] = useState(currentUser.address ?? "");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const navigate = useNavigate();
+  const email = currentUser.email ?? "";
 
+  const resetForm = (user: AuthUser) => {
+    setName(user.name ?? "");
+    setPhone(user.phone ?? "");
+    setAddress(user.address ?? "");
+  };
+
+  // Refresh from the server once, in case the profile changed elsewhere.
   useEffect(() => {
-    const user = getStoredItem("currentUser");
-    if (!user) {
-      navigate("/login");
-      return;
-    }
-
-    const userData = JSON.parse(user);
-    setCurrentUser(userData);
-
-    // Fetch fresh user data from server
-    const fetchUserData = async () => {
-      try {
-        const token = getStoredItem("customerToken");
-        if (!token) {
-          navigate("/login");
-          return;
-        }
-        const res = await fetch(apiUrl(`/users/${userData.id}`), {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        if (res.ok) {
-          const serverData = await res.json();
-          setCurrentUser(serverData);
-          setName(serverData.name || "");
-          setEmail(serverData.email || "");
-          setPhone(serverData.phone || "");
-          setAddress(serverData.address || "");
-        } else {
-          // Fall back to localStorage if server fetch fails
-          setName(userData.name || "");
-          setEmail(userData.email || "");
-          setPhone(userData.phone || "");
-          setAddress(userData.address || "");
-        }
-      } catch (err) {
-        // Fall back to localStorage if server fetch fails
-        setName(userData.name || "");
-        setEmail(userData.email || "");
-        setPhone(userData.phone || "");
-        setAddress(userData.address || "");
-      }
+    let cancelled = false;
+    getUser(currentUser.id)
+      .then((fresh) => {
+        if (cancelled) return;
+        updateCustomer({ ...currentUser, ...fresh });
+        resetForm(fresh);
+      })
+      .catch(() => {
+        // Keep the stored copy if the server can't be reached.
+      });
+    return () => {
+      cancelled = true;
     };
-
-    fetchUserData();
-  }, [navigate]);
+    // Only on first load for this user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id]);
 
   const handleSaveChanges = async () => {
     setError("");
 
-    if (!name.trim()) {
-      setError("Name is required");
-      return;
-    }
-    if (!phone.trim()) {
-      setError("Phone number is required");
-      return;
-    }
-    if (!address.trim()) {
-      setError("Address is required");
-      return;
-    }
+    if (!name.trim()) return setError("Name is required");
+    const phoneCheck = validatePhoneNumber(phone);
+    if (!phoneCheck.valid) return setError(phoneCheck.error ?? "Phone number is invalid");
+    if (!address.trim()) return setError("Address is required");
 
     setLoading(true);
     try {
-      const updatedUser = {
-        ...currentUser,
-        name,
-        phone,
-        address,
-      };
-
-      const token = getStoredItem("customerToken");
-      if (!token) {
-        setError("Please log in again to update your profile.");
-        setLoading(false);
-        return;
-      }
-
-      const res = await fetch(apiUrl(`/users/${currentUser.id}`), {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(updatedUser),
+      const saved = await updateUser(currentUser.id, {
+        name: name.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
       });
-
-      if (!res.ok) throw new Error("Failed to update profile");
-
-      setStoredItem("currentUser", JSON.stringify(updatedUser), "session");
-      setCurrentUser(updatedUser);
+      updateCustomer({ ...currentUser, ...saved });
       setIsEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update profile");
+      setError(getErrorMessage(err, "Failed to update profile"));
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogout = () => {
-    removeStoredItem("currentUser");
-    removeStoredItem("adminUser");
+    logout();
     navigate("/login");
   };
-
-  if (!currentUser) {
-    return <div>Loading...</div>;
-  }
 
   return (
     <>
@@ -209,9 +152,7 @@ export default function Profile() {
                     <button
                       onClick={() => {
                         setIsEditing(false);
-                        setName(currentUser.name || "");
-                        setPhone(currentUser.phone || "");
-                        setAddress(currentUser.address || "");
+                        resetForm(currentUser);
                         setError("");
                       }}
                       disabled={loading}

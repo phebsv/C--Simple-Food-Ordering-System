@@ -1,60 +1,45 @@
-﻿import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import C from "../constants/colors";
 import NomNomLogo from "./NomNomLogo";
 import { useCart } from "../context/CartContext";
+import { useAuth } from "../context/AuthContext";
 
 interface NavbarProps {
   title: string;
   showNavLinks?: boolean;
 }
 
-const handleLogout = () => {
-  localStorage.removeItem("currentUser");
-  localStorage.removeItem("customerToken");
-  localStorage.removeItem("adminUser");
-  localStorage.removeItem("adminToken");
-  window.location.href = "/login";
-};
+const linkStyle = { textDecoration: "none", color: C.text, fontWeight: 600, fontSize: 14 };
 
-export default function Navbar({ title, showNavLinks = false }: NavbarProps) {
-  const { items } = useCart();
-  const cartItemCount = items.reduce((sum, item) => sum + item.quantity, 0);
+const NAV_LINKS = [
+  { to: "/dashboard", label: "Home" },
+  { to: "/menu", label: "Menu" },
+  { to: "/cart", label: "Cart" },
+  { to: "/my-orders", label: "Orders" },
+  { to: "/profile", label: "Profile" },
+];
+
+function NavLinks() {
+  const { itemCount: cartItemCount } = useCart();
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
-    <div style={{
-      position: "fixed", top: 0, left: 0, right: 0, height: 64,
-      background: C.white, display: "flex", alignItems: "center",
-      padding: "0 2rem", gap: "1.2rem", zIndex: 100,
-      boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
-      justifyContent: "space-between",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}>
-        <NomNomLogo size="sm" />
-        <div style={{ width: 1, height: 30, background: "#E0D0D0" }} />
-        <span style={{
-          fontSize: 22, fontWeight: 900, color: C.text,
-          letterSpacing: "2px", textTransform: "uppercase",
-          fontFamily: "'Arial Black', Arial, sans-serif",
-        }}>{title}</span>
-      </div>
-      {showNavLinks && (
-        <nav style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
-          <Link to="/dashboard" style={{ textDecoration: "none", color: C.text, fontWeight: 600, fontSize: 14 }}>Home</Link>
-          <Link to="/menu" style={{ textDecoration: "none", color: C.text, fontWeight: 600, fontSize: 14 }}>Menu</Link>
+    <nav style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
+      {NAV_LINKS.map(({ to, label }) =>
+        to === "/cart" ? (
           <Link
-            to="/cart"
-            style={{
-              textDecoration: "none",
-              color: C.text,
-              fontWeight: 600,
-              fontSize: 14,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-            }}
+            key={to}
+            to={to}
+            style={{ ...linkStyle, display: "inline-flex", alignItems: "center", gap: 6 }}
             aria-label={`Cart with ${cartItemCount} item${cartItemCount === 1 ? "" : "s"}`}
           >
-            Cart
+            {label}
             {cartItemCount > 0 && (
               <span
                 style={{
@@ -76,25 +61,50 @@ export default function Navbar({ title, showNavLinks = false }: NavbarProps) {
               </span>
             )}
           </Link>
-          <Link to="/my-orders" style={{ textDecoration: "none", color: C.text, fontWeight: 600, fontSize: 14 }}>Orders</Link>
-          <Link to="/profile" style={{ textDecoration: "none", color: C.text, fontWeight: 600, fontSize: 14 }}>Profile</Link>
-          <button 
-            onClick={handleLogout}
-            style={{
-              background: "var(--red)",
-              color: "white",
-              border: "none",
-              padding: "8px 16px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontWeight: 600,
-              fontSize: 14,
-            }}
-          >
-            Logout
-          </button>
-        </nav>
+        ) : (
+          <Link key={to} to={to} style={linkStyle}>
+            {label}
+          </Link>
+        ),
       )}
+      <button
+        onClick={handleLogout}
+        style={{
+          background: "var(--red)",
+          color: "white",
+          border: "none",
+          padding: "8px 16px",
+          borderRadius: "6px",
+          cursor: "pointer",
+          fontWeight: 600,
+          fontSize: 14,
+        }}
+      >
+        Logout
+      </button>
+    </nav>
+  );
+}
+
+export default function Navbar({ title, showNavLinks = false }: NavbarProps) {
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, height: 64,
+      background: C.white, display: "flex", alignItems: "center",
+      padding: "0 2rem", gap: "1.2rem", zIndex: 100,
+      boxShadow: "0 1px 6px rgba(0,0,0,0.07)",
+      justifyContent: "space-between",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "1.2rem" }}>
+        <NomNomLogo size="sm" />
+        <div style={{ width: 1, height: 30, background: "#E0D0D0" }} />
+        <span style={{
+          fontSize: 22, fontWeight: 900, color: C.text,
+          letterSpacing: "2px", textTransform: "uppercase",
+          fontFamily: "'Arial Black', Arial, sans-serif",
+        }}>{title}</span>
+      </div>
+      {showNavLinks && <NavLinks />}
     </div>
   );
 }

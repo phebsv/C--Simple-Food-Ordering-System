@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import C from "../constants/colors";
 
@@ -7,6 +7,7 @@ interface RedBtnProps {
   onClick?: () => void;
   disabled?: boolean;
   type?: "button" | "submit" | "reset";
+  className?: string;
 }
 
 export default function RedBtn({
@@ -14,6 +15,7 @@ export default function RedBtn({
   onClick,
   disabled,
   type = "button",
+  className,
 }: RedBtnProps) {
   const [hover, setHover] = useState(false);
   const [active, setActive] = useState(false);
@@ -22,6 +24,7 @@ export default function RedBtn({
       onClick={onClick}
       disabled={disabled}
       type={type}
+      className={className}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => {
         setHover(false);

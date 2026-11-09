@@ -8,8 +8,6 @@ export const VALIDATION = {
   PASSWORD_MAX: 100,
   NAME_MIN: 2,
   NAME_MAX: 50,
-  PHONE_MIN: 10,
-  PHONE_MAX: 11,
 } as const;
 
 // Email validation pattern (RFC5322 simplified)
@@ -139,17 +137,24 @@ export function validateName(name: string, fieldName: string = "Name"): { valid:
 }
 
 /**
- * Validates phone number
+ * Validates a Philippine mobile number: 09XXXXXXXXX (11 digits) or +63 9XXXXXXXXX.
+ * Spaces, dashes and brackets are ignored.
  */
 export function validatePhoneNumber(phone: string): { valid: boolean; error?: string } {
-  const phoneDigits = phone.replace(/\D/g, "");
+  const digits = phone.replace(/\D/g, "");
 
-  if (!phoneDigits) {
+  if (!digits) {
     return { valid: false, error: "Phone number is required." };
   }
 
-  if (phoneDigits.length < VALIDATION.PHONE_MIN || phoneDigits.length > VALIDATION.PHONE_MAX) {
-    return { valid: false, error: `Phone number must be between ${VALIDATION.PHONE_MIN} and ${VALIDATION.PHONE_MAX} digits.` };
+  // "+63 917..." -> "0917..."
+  const local = digits.startsWith("63") ? `0${digits.slice(2)}` : digits;
+
+  if (!/^09\d{9}$/.test(local)) {
+    return {
+      valid: false,
+      error: "Enter an 11-digit mobile number (e.g. 09171234567) or +63 followed by 10 digits.",
+    };
   }
 
   return { valid: true };

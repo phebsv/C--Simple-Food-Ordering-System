@@ -1,6 +1,3 @@
-// src/pages/Register.tsx
-// Connected to Express /auth/register route via AuthContext
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -74,6 +71,7 @@ export default function Register() {
           <LeftPanel />
           <div className="register-form">
             <button
+              type="button"
               onClick={() => navigate("/login")}
               className="register-back-btn"
             >
@@ -93,6 +91,7 @@ export default function Register() {
             </p>
 
             <form
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!loading) handleRegister();

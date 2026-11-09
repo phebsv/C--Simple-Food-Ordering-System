@@ -1,61 +1,39 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
 import { useCart } from "../../context/CartContext";
+import { FALLBACK_FOOD_IMAGE, showFallbackImage } from "../../constants/images";
+import { getErrorMessage, getMenuItems, getReviews } from "../../services/api";
+import { averageRatings } from "../../utils/orderHelpers";
 import { decodeHtmlEntities, formatPricePHP } from "../../utils/textHelpers";
+import type { FoodItem } from "../../types";
 import "./Dashboard.css";
 import "./Menu.css";
-import { apiUrl } from "../../config/api";
-import { getReviews } from "../../services/api";
 
-import type { FoodItem, Review } from "../../types";
+const REFRESH_INTERVAL_MS = 5000;
 
-// Fallback image
-const FALLBACK_FOOD_IMAGE =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23F5EFE0' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' font-size='20' fill='%23888080' text-anchor='middle' dominant-baseline='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
+type Ratings = Record<string, { average: number; count: number }>;
 
-type ReviewSummary = {
-  averageRating: number;
-  count: number;
-};
-
-type ReviewLike = Partial<Review> & {
-  food_item_id?: string;
-  itemId?: string;
-  item_id?: string;
-  productId?: string;
-  product_id?: string;
-  food_item_name?: string;
-  itemName?: string;
-  item_name?: string;
-  productName?: string;
-  product_name?: string;
-};
-
-type MenuItemProps = {
+type MenuListProps = {
   items: FoodItem[];
   categories: string[];
-  selectedCategories: string[];
+  hiddenCategories: string[];
   onCategoryToggle: (category: string) => void;
   onAddToCart: (item: FoodItem) => void;
   selectedItemId: string | null;
-  reviewSummaries: Record<string, ReviewSummary>;
+  ratings: Ratings;
 };
 
 function MenuList({
   items,
   categories,
-  selectedCategories,
+  hiddenCategories,
   onCategoryToggle,
   onAddToCart,
   selectedItemId,
-  reviewSummaries,
-}: MenuItemProps) {
-  const handleAddClick = (item: FoodItem) => {
-    onAddToCart(item);
-  };
-
+  ratings,
+}: MenuListProps) {
   return (
     <section className="menu-section">
       <div className="menu-header">
@@ -71,7 +49,7 @@ function MenuList({
             <label key={category} className="menu-filter-label">
               <input
                 type="checkbox"
-                checked={selectedCategories.includes(category)}
+                checked={!hiddenCategories.includes(category)}
                 onChange={() => onCategoryToggle(category)}
               />
               {category}
@@ -82,7 +60,7 @@ function MenuList({
 
       <div className="menu-grid">
         {items.map((item) => {
-          const reviewSummary = reviewSummaries[item.id];
+          const rating = ratings[item.id];
 
           return (
             <div
@@ -94,26 +72,22 @@ function MenuList({
                   src={item.image || FALLBACK_FOOD_IMAGE}
                   alt={decodeHtmlEntities(item.name)}
                   className="menu-card-image"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = FALLBACK_FOOD_IMAGE;
-                  }}
+                  onError={showFallbackImage}
                 />
               </div>
               <div className="menu-card-content">
                 <div className="menu-card-title">
                   <h4>{decodeHtmlEntities(item.name)}</h4>
-                  <span className="menu-card-price">
-                    {formatPricePHP(item.price)}
-                  </span>
+                  <span className="menu-card-price">{formatPricePHP(item.price)}</span>
                 </div>
                 <p className="menu-card-description">{item.description}</p>
                 <div className="menu-card-rating">
-                  {reviewSummary ? (
+                  {rating ? (
                     <>
                       <span className="menu-card-stars" aria-hidden="true">
                         ★
                       </span>
-                      <span>{reviewSummary.averageRating.toFixed(1)}</span>
+                      <span>{rating.average.toFixed(1)}</span>
                     </>
                   ) : (
                     <span className="menu-card-no-rating">Not rated yet</span>
@@ -121,13 +95,8 @@ function MenuList({
                 </div>
                 <div className="menu-card-footer">
                   <span className="menu-card-category">{item.category}</span>
-                  <button
-                    className="menu-add-btn"
-                    onClick={() => handleAddClick(item)}
-                    disabled={item.available === false}
-                    title={item.available === false ? "Item unavailable" : ""}
-                  >
-                    {item.available === false ? "Unavailable" : "Add to Cart"}
+                  <button className="menu-add-btn" onClick={() => onAddToCart(item)}>
+                    Add to Cart
                   </button>
                 </div>
               </div>
@@ -139,158 +108,78 @@ function MenuList({
   );
 }
 
-function buildReviewSummaries(
-  items: FoodItem[],
-  reviews: ReviewLike[],
-): Record<string, ReviewSummary> {
-  const visibleReviews = reviews.filter((review) => !review.hidden);
-
-  return items.reduce<Record<string, ReviewSummary>>((summaries, item) => {
-    const normalizedItemName = decodeHtmlEntities(item.name).toLowerCase();
-    const itemReviews = visibleReviews.filter((review) => {
-      const reviewItemId =
-        review.foodItemId ??
-        review.food_item_id ??
-        review.itemId ??
-        review.item_id ??
-        review.productId ??
-        review.product_id;
-      const normalizedReviewName = decodeHtmlEntities(
-        review.foodItemName ||
-          review.food_item_name ||
-          review.itemName ||
-          review.item_name ||
-          review.productName ||
-          review.product_name ||
-          "",
-      ).toLowerCase();
-
-      return (
-        String(reviewItemId) === String(item.id) ||
-        normalizedReviewName === normalizedItemName
-      );
-    });
-
-    if (itemReviews.length === 0) {
-      return summaries;
-    }
-
-    const totalRating = itemReviews.reduce(
-      (sum, review) => sum + Number(review.rating || 0),
-      0,
-    );
-
-    summaries[item.id] = {
-      averageRating: totalRating / itemReviews.length,
-      count: itemReviews.length,
-    };
-
-    return summaries;
-  }, {});
-}
-
-function getReviewList(response: unknown): ReviewLike[] {
-  if (Array.isArray(response)) return response as ReviewLike[];
-
-  if (response && typeof response === "object") {
-    const data = (response as { data?: unknown }).data;
-    const reviews = (response as { reviews?: unknown }).reviews;
-
-    if (Array.isArray(data)) return data as ReviewLike[];
-    if (Array.isArray(reviews)) return reviews as ReviewLike[];
-  }
-
-  return [];
-}
-
 export default function Menu() {
-  const [allMenuItems, setAllMenuItems] = useState<FoodItem[]>([]);
-  const [reviewSummaries, setReviewSummaries] = useState<
-    Record<string, ReviewSummary>
-  >({});
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [menuItems, setMenuItems] = useState<FoodItem[]>([]);
+  const [ratings, setRatings] = useState<Ratings>({});
+  // Categories the customer unticked. New categories show up ticked by default.
+  const [hiddenCategories, setHiddenCategories] = useState<string[]>([]);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [addedItem, setAddedItem] = useState<FoodItem | null>(null);
-  const { addItem } = useCart();
+  const { items: cartItems, addItem } = useCart();
   const navigate = useNavigate();
 
-  const fetchMenu = async (showLoading = true) => {
-    try {
-      if (showLoading) {
-        setLoading(true);
-      }
-      const res = await fetch(apiUrl("/menu"));
-      if (!res.ok) throw new Error("Failed to fetch menu");
-      const data = await res.json();
+  // Load the menu now, then keep it fresh so stock changes show up.
+  useEffect(() => {
+    let cancelled = false;
 
-      const availableItems = data.filter(
-        (item: FoodItem) => item.available !== false,
-      );
-      setAllMenuItems(availableItems);
+    const load = async () => {
+      try {
+        const data = await getMenuItems();
+        if (cancelled) return;
+        // Unavailable (including out-of-stock) items are hidden from customers.
+        setMenuItems(data.filter((item) => item.available !== false));
+        setError(null);
+      } catch (err) {
+        if (!cancelled) setError(getErrorMessage(err, "Failed to load menu"));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
 
       try {
-        const reviews = getReviewList(await getReviews());
-        setReviewSummaries(buildReviewSummaries(availableItems, reviews));
+        const reviews = await getReviews();
+        if (!cancelled) setRatings(averageRatings(reviews));
       } catch {
-        setReviewSummaries({});
+        // Ratings are optional; the menu still works without them.
       }
+    };
 
-      const uniqueCategories = [
-        ...new Set(availableItems.map((item: FoodItem) => item.category)),
-      ] as string[];
-      setSelectedCategories((prev) =>
-        prev.length > 0 ? prev : uniqueCategories,
-      );
-      setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load menu");
-      setAllMenuItems([]);
-      setReviewSummaries({});
-    } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
-    }
-  };
-
-  // Fetch menu items from API
-  useEffect(() => {
-    fetchMenu(true);
-    const interval = window.setInterval(() => {
-      fetchMenu(false);
-    }, 5000);
-
-    return () => window.clearInterval(interval);
+    load();
+    const interval = window.setInterval(load, REFRESH_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
   }, []);
 
+  const categories = useMemo(
+    () => [...new Set(menuItems.map((item) => item.category))],
+    [menuItems],
+  );
+
+  const visibleMenuItems = menuItems.filter((item) => !hiddenCategories.includes(item.category));
+
   const handleCategoryToggle = (category: string) => {
-    setSelectedCategories((prev) =>
-      prev.includes(category)
-        ? prev.filter((item) => item !== category)
-        : [...prev, category],
+    setHiddenCategories((prev) =>
+      prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category],
     );
   };
 
   const handleAddToCart = (item: FoodItem) => {
+    const inCart = cartItems.find((line) => line.id === item.id)?.quantity ?? 0;
+    if (item.stock !== undefined && inCart >= item.stock) {
+      setNotice(`Sorry, only ${item.stock} ${decodeHtmlEntities(item.name)} left in stock.`);
+      return;
+    }
+    setNotice(null);
     addItem(item);
     setSelectedItemId(item.id);
     setAddedItem(item);
   };
 
-  const visibleMenuItems = allMenuItems.filter(
-    (item) =>
-      selectedCategories.length === 0 ||
-      selectedCategories.includes(item.category),
-  );
-
-  const uniqueCategories = [
-    ...new Set(allMenuItems.map((item) => item.category)),
-  ];
-
-  // Get a featured item for hero banner
-  const featuredItem = allMenuItems.length > 0 ? allMenuItems[0] : null;
+  const featuredItem = menuItems[0] ?? null;
 
   return (
     <>
@@ -323,9 +212,7 @@ export default function Menu() {
                 <img
                   src={featuredItem.image || FALLBACK_FOOD_IMAGE}
                   alt={decodeHtmlEntities(featuredItem.name)}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = FALLBACK_FOOD_IMAGE;
-                  }}
+                  onError={showFallbackImage}
                 />
               </div>
             </div>
@@ -350,22 +237,29 @@ export default function Menu() {
               >
                 <p>Error: {error}</p>
               </div>
-            ) : allMenuItems.length === 0 ? (
+            ) : menuItems.length === 0 ? (
               <div
                 style={{ textAlign: "center", padding: "40px", color: "#666" }}
               >
                 <p>No items available</p>
               </div>
             ) : (
-              <MenuList
-                items={visibleMenuItems}
-                categories={uniqueCategories}
-                selectedCategories={selectedCategories}
-                onCategoryToggle={handleCategoryToggle}
-                onAddToCart={handleAddToCart}
-                selectedItemId={selectedItemId}
-                reviewSummaries={reviewSummaries}
-              />
+              <>
+                {notice && (
+                  <p role="alert" style={{ color: "#d32f2f", fontWeight: 600, textAlign: "center" }}>
+                    {notice}
+                  </p>
+                )}
+                <MenuList
+                  items={visibleMenuItems}
+                  categories={categories}
+                  hiddenCategories={hiddenCategories}
+                  onCategoryToggle={handleCategoryToggle}
+                  onAddToCart={handleAddToCart}
+                  selectedItemId={selectedItemId}
+                  ratings={ratings}
+                />
+              </>
             )}
           </div>
         </div>
@@ -396,9 +290,7 @@ export default function Menu() {
                 <img
                   src={addedItem.image || FALLBACK_FOOD_IMAGE}
                   alt={decodeHtmlEntities(addedItem.name)}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = FALLBACK_FOOD_IMAGE;
-                  }}
+                  onError={showFallbackImage}
                 />
               </div>
 

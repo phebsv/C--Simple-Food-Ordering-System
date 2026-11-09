@@ -1,109 +1,63 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import { getErrorMessage, placeOrder } from "../../services/api";
+import { formatPricePHP } from "../../utils/textHelpers";
+import { validatePhoneNumber } from "../../utils/validationHelpers";
 import "./Checkout.css";
-import { apiUrl } from "../../config/api";
-import { getStoredItem } from "../../utils/storage";
 
 export default function Checkout() {
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const { customer } = useAuth();
+  const { items, total, clearCart } = useCart();
+  const navigate = useNavigate();
+
+  // Pre-fill delivery details from the customer's profile.
+  const [name, setName] = useState(customer?.name ?? "");
+  const [phone, setPhone] = useState(customer?.phone ?? "");
+  const [address, setAddress] = useState(customer?.address ?? "");
   const [notes, setNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("credit-card");
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [currentUser, setCurrentUser] = useState<any>(null);
-  const navigate = useNavigate();
-  const { items, total, clearCart } = useCart();
-
-  useEffect(() => {
-    const user = getStoredItem("currentUser");
-    if (user) {
-      const userData = JSON.parse(user);
-      setCurrentUser(userData);
-      setName(userData.name || "");
-      setPhone(userData.phone || "");
-      setAddress(userData.address || "");
-    }
-  }, []);
 
   const handleCheckout = async () => {
     setError("");
-    setFieldErrors({});
 
     const nextFieldErrors: Record<string, string> = {};
-    const phoneDigits = phone.replace(/\D/g, "");
+    if (name.trim().length < 2) nextFieldErrors.name = "Enter your full name.";
+    const phoneCheck = validatePhoneNumber(phone);
+    if (!phoneCheck.valid) nextFieldErrors.phone = phoneCheck.error ?? "Enter a valid phone number.";
+    if (address.trim().length < 10) nextFieldErrors.address = "Enter a complete delivery address.";
 
-    if (name.trim().length < 2) {
-      nextFieldErrors.name = "Enter your full name.";
-    }
-    if (phoneDigits.length < 10 || phoneDigits.length > 11) {
-      nextFieldErrors.phone = "Enter a valid 10 or 11 digit phone number.";
-    }
-    if (address.trim().length < 10) {
-      nextFieldErrors.address = "Enter a complete delivery address.";
-    }
-
+    setFieldErrors(nextFieldErrors);
     if (Object.keys(nextFieldErrors).length > 0) {
-      setFieldErrors(nextFieldErrors);
       setError("Please check the highlighted delivery details.");
       return;
     }
     if (items.length === 0) {
-      setError("Cart is empty");
-      return;
-    }
-
-    const token = getStoredItem("customerToken");
-    if (!token) {
-      setError("Please log in again to place an order.");
+      setError("Your cart is empty.");
       return;
     }
 
     setLoading(true);
     try {
-      const newOrder = {
-        id: `order${Date.now()}`,
-        customerId: currentUser?.id || "guest",
-        customerName: name,
-        customerEmail: currentUser?.email || "",
-        customerPhone: phone,
-        customerAddress: address,
-        items: items.map((item) => ({
-          id: item.id,
-          name: item.name,
-          description: item.description,
-          price: item.price,
-          category: item.category,
-          quantity: item.quantity,
-        })),
-        subtotal: parseFloat(total.toFixed(2)),
-        total: parseFloat(total.toFixed(2)),
-        status: "Pending",
+      // The server looks up prices and stock itself; we only send ids and quantities.
+      await placeOrder({
+        customerName: name.trim(),
+        customerEmail: customer?.email ?? "",
+        customerPhone: phone.trim(),
+        customerAddress: address.trim(),
+        items: items.map(({ id, quantity }) => ({ id, quantity })),
         paymentMethod,
-        deliveryNotes: notes,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-
-      const res = await fetch(apiUrl("/orders"), {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(newOrder),
+        deliveryNotes: notes.trim(),
       });
-
-      if (!res.ok) throw new Error("Failed to place order");
-
       clearCart();
       navigate("/my-orders");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to place order");
+      setError(getErrorMessage(err, "Failed to place order."));
     } finally {
       setLoading(false);
     }
@@ -245,7 +199,7 @@ export default function Checkout() {
                           <p>Qty: {item.quantity}</p>
                         </div>
                         <div className="summary-item-price">
-                          ₱{(item.price * item.quantity).toFixed(2)}
+                          {formatPricePHP(item.price * item.quantity)}
                         </div>
                       </div>
                     ))}
@@ -258,7 +212,7 @@ export default function Checkout() {
               <div className="summary-total">
                 <div className="summary-row">
                   <span>Subtotal:</span>
-                  <span>₱{total.toFixed(2)}</span>
+                  <span>{formatPricePHP(total)}</span>
                 </div>
                 <div className="summary-row">
                   <span>Delivery:</span>
@@ -266,7 +220,7 @@ export default function Checkout() {
                 </div>
                 <div className="summary-row summary-row-total">
                   <span>Total:</span>
-                  <span>₱{total.toFixed(2)}</span>
+                  <span>{formatPricePHP(total)}</span>
                 </div>
               </div>
             </div>

@@ -5,29 +5,10 @@ import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import { useAdmin } from "../../context/AdminContext";
-import type { AdminProfile } from "../../interfaces";
+import type { AdminProfile } from "../../types";
+import { sortNewestFirst } from "../../utils/orderHelpers";
+import { formatPricePHP } from "../../utils/textHelpers";
 import "./AdminDashboard.css";
-
-type OrderWithDateFields = {
-  createdAt?: string;
-  created_at?: string;
-  order_date?: string;
-  timestamp?: string;
-  date?: string;
-  updatedAt?: string;
-};
-
-function getOrderTime(order: OrderWithDateFields) {
-  const dateValue =
-    order.createdAt ??
-    order.created_at ??
-    order.order_date ??
-    order.timestamp ??
-    order.date ??
-    order.updatedAt;
-
-  return new Date(dateValue || 0).getTime() || 0;
-}
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -42,15 +23,15 @@ function AdminDashboard() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
-  const ordersList = orders as any[];
+  const ordersList = orders;
 
   const stats = useMemo(() => {
     const today = new Date().toDateString();
 
     const todayOrders = ordersList.filter((order) => {
-      const orderDate = order.createdAt || order.date;
+      const orderDate = order.createdAt;
       if (!orderDate) return false;
 
       return new Date(orderDate).toDateString() === today;
@@ -74,8 +55,7 @@ function AdminDashboard() {
       preparing: getStatusCount("Preparing"),
       ready: getStatusCount("Ready"),
       delivered: getStatusCount("Delivered"),
-      cancelled:
-        getStatusCount("Cancelled") + getStatusCount("Canceled"),
+      cancelled: getStatusCount("Cancelled"),
     };
   }, [ordersList]);
 
@@ -86,7 +66,7 @@ function AdminDashboard() {
     ordersList.forEach((order) => {
       const items = order.items || [];
 
-      items.forEach((item: any) => {
+      items.forEach((item) => {
         const itemId = item.id || item.name;
 
         if (!itemCounts[itemId]) {
@@ -109,7 +89,7 @@ function AdminDashboard() {
   const lowStockItems = useMemo(() => {
     return inventoryItems
       .filter(
-        (item: any) =>
+        (item) =>
           item.status === "Low Stock" || item.status === "Out of Stock"
       )
       .slice(0, 5);
@@ -118,12 +98,12 @@ function AdminDashboard() {
   const recentOrders = useMemo(() => {
     const searchValue = searchTerm.toLowerCase();
 
-    return [...ordersList]
+    return sortNewestFirst(ordersList)
       .filter((order) => {
-        const orderId = String(order.id || order.orderId || "").toLowerCase();
+        const orderId = order.id.toLowerCase();
         const customerName = String(order.customerName || "").toLowerCase();
         const status = String(order.status || "").toLowerCase();
-        const date = String(order.createdAt || order.date || "").toLowerCase();
+        const date = order.createdAt.toLowerCase();
 
         return (
           orderId.includes(searchValue) ||
@@ -131,9 +111,6 @@ function AdminDashboard() {
           status.includes(searchValue) ||
           date.includes(searchValue)
         );
-      })
-      .sort((a, b) => {
-        return getOrderTime(b) - getOrderTime(a);
       })
       .slice(0, 10);
   }, [ordersList, searchTerm]);
@@ -179,7 +156,7 @@ function AdminDashboard() {
 
           <StatCard
             title="Revenue Today"
-            value={`₱${stats.totalRevenue.toFixed(2)}`}
+            value={formatPricePHP(stats.totalRevenue)}
             icon="Revenue"
             color="green"
           />
@@ -271,7 +248,7 @@ function AdminDashboard() {
               {lowStockItems.length === 0 ? (
                 <p className="empty-state">All items in stock</p>
               ) : (
-                lowStockItems.map((item: any) => (
+                lowStockItems.map((item) => (
                   <div key={item.id} className="low-stock-item">
                     <div className="low-stock-info">
                       <div className="low-stock-name">{item.name}</div>
@@ -323,9 +300,9 @@ function AdminDashboard() {
 
                 <tbody>
                   {recentOrders.map((order) => (
-                    <tr key={order.id || order.orderId}>
+                    <tr key={order.id}>
                       <td className="order-id">
-                        #{String(order.id || order.orderId || "").slice(0, 8)}
+                        #{order.id.slice(0, 8)}
                       </td>
 
                       <td>{order.customerName}</td>
@@ -333,7 +310,7 @@ function AdminDashboard() {
                       <td>{order.items ? order.items.length : 0} item(s)</td>
 
                       <td className="order-total">
-                        PHP {Number(order.total || 0).toFixed(2)}
+                        {formatPricePHP(order.total)}
                       </td>
 
                       <td>
@@ -341,9 +318,7 @@ function AdminDashboard() {
                       </td>
 
                       <td className="order-date">
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString()
-                          : order.date}
+                        {new Date(order.createdAt).toLocaleDateString()}
                       </td>
                     </tr>
                   ))}

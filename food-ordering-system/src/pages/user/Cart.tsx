@@ -2,26 +2,14 @@ import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
 import { useCart } from "../../context/CartContext";
+import { FALLBACK_FOOD_IMAGE, showFallbackImage } from "../../constants/images";
+import { formatPricePHP } from "../../utils/textHelpers";
 import "./Cart.css";
 
-const FALLBACK_FOOD_IMAGE =
-  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23FAE8E8' width='200' height='200'/%3E%3Ccircle cx='100' cy='86' r='38' fill='%23F5EFE0' stroke='%23C8000A' stroke-width='6'/%3E%3Cpath d='M65 134h70' stroke='%23C8000A' stroke-width='8' stroke-linecap='round'/%3E%3Ctext x='50%25' y='168' font-size='16' font-family='Arial, sans-serif' font-weight='700' fill='%23888080' text-anchor='middle'%3ENo Image%3C/text%3E%3C/svg%3E";
 
 export default function Cart() {
-  const { items, removeItem, updateQuantity } = useCart();
+  const { items, total, removeItem, updateQuantity } = useCart();
   const navigate = useNavigate();
-  const total = items.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0,
-  );
-
-  const handleQuantityChange = (itemId: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(itemId);
-      return;
-    }
-    updateQuantity(itemId, newQuantity);
-  };
 
   return (
     <>
@@ -54,10 +42,7 @@ export default function Cart() {
                         <img
                           src={item.image || FALLBACK_FOOD_IMAGE}
                           alt={item.name}
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src =
-                              FALLBACK_FOOD_IMAGE;
-                          }}
+                          onError={showFallbackImage}
                         />
                       </div>
 
@@ -67,7 +52,7 @@ export default function Cart() {
                           {item.description}
                         </p>
                         <p className="cart-item-price">
-                          ₱{item.price.toFixed(2)} each
+                          {formatPricePHP(item.price)} each
                         </p>
                       </div>
 
@@ -75,7 +60,7 @@ export default function Cart() {
                         <div className="quantity-selector">
                           <button
                             onClick={() =>
-                              handleQuantityChange(item.id, item.quantity - 1)
+                              updateQuantity(item.id, item.quantity - 1)
                             }
                             className="qty-btn"
                             aria-label={`Decrease ${item.name} quantity`}
@@ -85,7 +70,7 @@ export default function Cart() {
                           <span className="qty-display">{item.quantity}</span>
                           <button
                             onClick={() =>
-                              handleQuantityChange(item.id, item.quantity + 1)
+                              updateQuantity(item.id, item.quantity + 1)
                             }
                             className="qty-btn"
                             aria-label={`Increase ${item.name} quantity`}
@@ -95,7 +80,7 @@ export default function Cart() {
                         </div>
 
                         <div className="cart-item-subtotal">
-                          ₱{(item.price * item.quantity).toFixed(2)}
+                          {formatPricePHP(item.price * item.quantity)}
                         </div>
 
                         <button
@@ -123,7 +108,7 @@ export default function Cart() {
                         <span>
                           {item.name} x {item.quantity}
                         </span>
-                        <span>₱{(item.price * item.quantity).toFixed(2)}</span>
+                        <span>{formatPricePHP(item.price * item.quantity)}</span>
                       </div>
                     ))}
                   </div>
@@ -132,7 +117,7 @@ export default function Cart() {
 
                   <div className="summary-total">
                     <span>Total:</span>
-                    <span className="total-amount">₱{total.toFixed(2)}</span>
+                    <span className="total-amount">{formatPricePHP(total)}</span>
                   </div>
 
                   <button

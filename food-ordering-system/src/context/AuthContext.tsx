@@ -1,97 +1,89 @@
-// src/context/AuthContext.tsx
-// Manages customer auth state - token + user stored in localStorage
+// Single source of truth for who is logged in (customer or admin).
+// The token and user are kept in sessionStorage, or localStorage with "remember me".
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { loginCustomer, registerCustomer } from "../services/api.ts";
-import type { AuthUser } from "../services/api.ts";
+import { getErrorMessage, loginCustomer, registerCustomer } from "../services/api";
+import { TOKEN_KEY, USER_KEY } from "../constants/storageKeys";
+import type { AuthUser } from "../types";
 import { getStoredItem, removeStoredItem, setStoredItem } from "../utils/storage";
+
+type RegisterData = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phoneNumber: string;
+  agreeToTerms: boolean;
+};
 
 interface AuthContextType {
   customer: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
-  hydrating: boolean;
+  isAdmin: boolean;
   loading: boolean;
   error: string;
-  login: (
-    email: string,
-    password: string,
-    options?: { remember?: boolean },
-  ) => Promise<boolean>;
-  register: (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    phoneNumber: string;
-    agreeToTerms: boolean;
-  }) => Promise<boolean>;
+  login: (email: string, password: string, options?: { remember?: boolean }) => Promise<AuthUser | null>;
+  register: (data: RegisterData) => Promise<boolean>;
+  updateCustomer: (user: AuthUser) => void;
   logout: () => void;
   setError: (msg: string) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function readStoredUser(): AuthUser | null {
+  const raw = getStoredItem(USER_KEY);
+  if (!raw || !getStoredItem(TOKEN_KEY)) return null;
+  try {
+    return JSON.parse(raw) as AuthUser;
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function isAdminUser(user: AuthUser | null | undefined) {
+  return user?.role === "admin" || user?.isAdmin === true;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [customer, setCustomer] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [hydrating, setHydrating] = useState(true);
+  // Restore the session synchronously so protected routes never flash a redirect.
+  const [customer, setCustomer] = useState<AuthUser | null>(readStoredUser);
+  const [token, setToken] = useState<string | null>(() =>
+    readStoredUser() ? getStoredItem(TOKEN_KEY) : null,
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Restore session on mount
-  useEffect(() => {
-    const savedToken = getStoredItem("customerToken");
-    const savedUser = getStoredItem("currentUser");
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setCustomer(JSON.parse(savedUser));
-    }
-    setHydrating(false);
-  }, []);
+  const login = useCallback(
+    async (email: string, password: string, options?: { remember?: boolean }) => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await loginCustomer(email, password);
+        const { token: newToken, customer: user } = res.data;
+        const area = options?.remember ? "local" : "session";
 
-  const login = async (
-    email: string,
-    password: string,
-    options?: { remember?: boolean },
-  ): Promise<boolean> => {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await loginCustomer(email, password);
-      const { token: t, customer: user } = res.data;
-      const area = options?.remember ? "local" : "session";
-
-      setToken(t);
-      setCustomer(user);
-      setStoredItem("customerToken", t, area);
-      setStoredItem("currentUser", JSON.stringify(user), area);
-      if (user.role === "admin" || user.isAdmin) {
-        setStoredItem("adminToken", t, area);
-        setStoredItem("adminUser", JSON.stringify(user), area);
-      } else {
-        removeStoredItem("adminToken");
-        removeStoredItem("adminUser");
+        removeStoredItem(TOKEN_KEY);
+        removeStoredItem(USER_KEY);
+        setStoredItem(TOKEN_KEY, newToken, area);
+        setStoredItem(USER_KEY, JSON.stringify(user), area);
+        setToken(newToken);
+        setCustomer(user);
+        return user;
+      } catch (err) {
+        setError(getErrorMessage(err, "Invalid email or password."));
+        return null;
+      } finally {
+        setLoading(false);
       }
-      return true;
-    } catch (err: any) {
-      const msg = err.response?.data?.message || "Invalid email or password.";
-      setError(msg);
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [],
+  );
 
-  const register = async (data: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    password: string;
-    phoneNumber: string;
-    agreeToTerms: boolean;
-  }): Promise<boolean> => {
+  const register = useCallback(async (data: RegisterData) => {
     setLoading(true);
     setError("");
     try {
@@ -100,44 +92,51 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: data.email,
         password: data.password,
         phone: data.phoneNumber,
-        address: "",
       });
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed.");
+      setError(getErrorMessage(err, "Registration failed."));
       return false;
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const logout = () => {
-    setCustomer(null);
+  // Keep the stored copy in the same storage area it was saved to.
+  const updateCustomer = useCallback((user: AuthUser) => {
+    const area = localStorage.getItem(USER_KEY) ? "local" : "session";
+    setStoredItem(USER_KEY, JSON.stringify(user), area);
+    setCustomer(user);
+  }, []);
+
+  const logout = useCallback(() => {
+    removeStoredItem(TOKEN_KEY);
+    removeStoredItem(USER_KEY);
     setToken(null);
-    removeStoredItem("customerToken");
-    removeStoredItem("currentUser");
-  };
+    setCustomer(null);
+  }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{
-        customer,
-        token,
-        isAuthenticated: !!token,
-        hydrating,
-        loading,
-        error,
-        login,
-        register,
-        logout,
-        setError,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+  const value = useMemo(
+    () => ({
+      customer,
+      token,
+      isAuthenticated: !!token,
+      isAdmin: !!token && isAdminUser(customer),
+      loading,
+      error,
+      login,
+      register,
+      updateCustomer,
+      logout,
+      setError,
+    }),
+    [customer, token, loading, error, login, register, updateCustomer, logout],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");

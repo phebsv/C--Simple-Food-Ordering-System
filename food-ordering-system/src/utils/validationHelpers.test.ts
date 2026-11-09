@@ -285,8 +285,9 @@ describe("Validation Helpers", () => {
     });
 
     it("rejects login with invalid email", () => {
+      // Without "@" the id is treated as a username, so use a malformed email.
       const result = validateLoginForm({
-        loginId: "notanemail",
+        loginId: "user@notanemail",
         password: "Password123",
       });
       expect(result.valid).toBe(false);

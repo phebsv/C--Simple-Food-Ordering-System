@@ -8,24 +8,25 @@ app.use(express.json());
 
 app.use("/auth", require("./routes/auth"));
 app.use("/users", require("./routes/users"));
-app.use("/admins", require("./routes/admins"));
 app.use("/menu", require("./routes/menu"));
 app.use("/orders", require("./routes/orders"));
-app.use("/inventory", require("./routes/inventory"));
 app.use("/reviews", require("./routes/reviews"));
-app.use("/adminProfile", require("./routes/adminProfile"));
 app.use("/cart_items", require("./routes/cart_items"));
 
 app.get("/", (req, res) => {
-  res.json({ message: "[BURGER] NomNom API is running.", port: PORT });
+  res.json({ message: "NomNom API is running.", port: PORT });
 });
 
 app.use((req, res) => {
-  res
-    .status(404)
-    .json({ message: `Route ${req.method} ${req.path} not found.` });
+  res.status(404).json({ message: `Route ${req.method} ${req.path} not found.` });
+});
+
+// Return JSON instead of an HTML stack trace for unexpected errors.
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(err.status || 500).json({ message: err.message || "Something went wrong." });
 });
 
 app.listen(PORT, () => {
-  console.log(`🍔 NomNom Backend running on http://localhost:${PORT}`);
+  console.log(`NomNom backend running on http://localhost:${PORT}`);
 });

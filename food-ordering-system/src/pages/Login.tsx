@@ -1,6 +1,3 @@
-// src/pages/Login.tsx
-// Connected to Express backend via AuthContext
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -9,19 +6,17 @@ import BgFood from "../components/BgFood";
 import UInput from "../components/UInput";
 import RedBtn from "../components/RedBtn";
 import { MailIcon, LockIcon } from "../components/UInput";
-import { useAuth } from "../context/AuthContext";
-import { useAdmin } from "../context/AdminContext";
+import { isAdminUser, useAuth } from "../context/AuthContext";
 import { validateLoginForm } from "../utils/validationHelpers";
-import type { AuthUser } from "../services/api.ts";
 import "./Login.css";
 
 export default function Login() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
+  const [remember, setRemember] = useState(false);
   const [localError, setLocalError] = useState<string>("");
 
   const { login, loading, error } = useAuth();
-  const { login: loginAdmin } = useAdmin();
   const navigate = useNavigate();
 
   const handleLogin = async () => {
@@ -35,23 +30,10 @@ export default function Login() {
       return setLocalError(validation.error || "Validation failed.");
     }
 
-    const customerSuccess = await login(loginId, password, { remember: false });
-    if (!customerSuccess) {
-      return;
+    const user = await login(loginId, password, { remember });
+    if (user) {
+      navigate(isAdminUser(user) ? "/admin/dashboard" : "/dashboard");
     }
-
-    const rawUser = sessionStorage.getItem("currentUser") || localStorage.getItem("currentUser");
-    const user = rawUser ? (JSON.parse(rawUser) as AuthUser) : null;
-
-    if (user?.role === "admin" || user?.isAdmin) {
-      const adminSuccess = await loginAdmin(loginId, password);
-      if (adminSuccess) {
-        navigate("/admin/dashboard");
-      }
-      return;
-    }
-
-    navigate("/dashboard");
   };
 
   const displayError = localError || error;
@@ -69,6 +51,7 @@ export default function Login() {
               If you don't have an account register
             </p>
             <button
+              type="button"
               onClick={() => navigate("/register")}
               className="login-register-btn"
             >
@@ -76,6 +59,7 @@ export default function Login() {
             </button>
 
             <form
+              noValidate
               onSubmit={(e) => {
                 e.preventDefault();
                 if (!loading) handleLogin();
@@ -101,6 +85,14 @@ export default function Login() {
               />
 
               <div className="login-options">
+                <label className="login-remember">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                  />
+                  Remember me
+                </label>
               </div>
 
               {displayError && <p className="login-error">{displayError}</p>}

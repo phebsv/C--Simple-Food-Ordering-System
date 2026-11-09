@@ -151,6 +151,5 @@
     }
   ],
   "reviews": [],
-  "cart_items": [],
-  "$schema": "./node_modules/json-server/schema.json"
+  "cart_items": []
 }

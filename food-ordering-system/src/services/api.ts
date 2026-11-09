@@ -1,76 +1,46 @@
+// The one HTTP client for the whole app. Every request to the backend goes
+// through here so the auth header and error handling live in one place.
 import axios from "axios";
 import { API_BASE_URL } from "../config/api";
 import { getStoredItem } from "../utils/storage";
+import { TOKEN_KEY } from "../constants/storageKeys";
+import type {
+  AuthUser,
+  CartItem,
+  FoodItem,
+  Order,
+  OrderItem,
+  OrderStatus,
+  Review,
+} from "../types";
 
 const API = axios.create({
   baseURL: API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
 API.interceptors.request.use((config) => {
-  const token = getStoredItem("adminToken") || getStoredItem("customerToken");
-
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-
+  const token = getStoredItem(TOKEN_KEY);
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-export type AuthUser = {
-  id: string;
-  name?: string;
-  email?: string;
-  role?: "admin" | "user";
-  isAdmin?: boolean;
-};
-
-export type AuthResponse = {
-  message: string;
-  token: string;
-  user?: AuthUser;
-  admin?: AuthUser;
-};
-
-type BackendAuthResponse = {
-  message: string;
-  data: {
-    token: string;
-    user: AuthUser;
-  };
-};
-
-export async function loginUser(payload: {
-  email: string;
-  password: string;
-}): Promise<BackendAuthResponse> {
-  const res = await API.post("/auth/login", payload);
-  return res.data as BackendAuthResponse;
+/** Turn any thrown value into a readable message (prefers the server's message). */
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (axios.isAxiosError(err)) {
+    const message = (err.response?.data as { message?: string } | undefined)?.message;
+    if (message) return message;
+  }
+  return err instanceof Error && err.message ? err.message : fallback;
 }
 
-export async function registerUser(payload: {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber: string;
-  password: string;
-  agreeToTerms: boolean;
-}): Promise<BackendAuthResponse> {
-  const res = await API.post("/auth/register", {
-    name: `${payload.firstName} ${payload.lastName}`.trim(),
-    email: payload.email,
-    password: payload.password,
-    phone: payload.phoneNumber,
-    address: "",
-  });
-  return res.data as BackendAuthResponse;
-}
+// ---------- Auth ----------
+
+type AuthPayload = { token: string; user: AuthUser };
 
 export async function loginCustomer(email: string, password: string) {
-  const res = await loginUser({ email, password });
-  return { data: { token: res.data.token, customer: res.data.user } };
+  const res = await API.post<{ data: AuthPayload }>("/auth/login", { email, password });
+  return { data: { token: res.data.data.token, customer: res.data.data.user } };
 }
 
 export async function registerCustomer(data: {
@@ -80,84 +50,116 @@ export async function registerCustomer(data: {
   phone?: string;
   address?: string;
 }) {
-  const res = await API.post("/auth/register", {
-    name: data.name,
-    email: data.email,
-    password: data.password,
-    phone: data.phone || "",
-    address: data.address || "",
+  const res = await API.post<{ data: AuthPayload }>("/auth/register", {
+    ...data,
+    phone: data.phone ?? "",
+    address: data.address ?? "",
   });
-
   return { data: { token: res.data.data.token, customer: res.data.data.user } };
 }
 
-export async function loginAdmin(email: string, password: string) {
-  const res = await API.post("/auth/admin-login", {
-    username: email, // IMPORTANT FIX
-    password,
-  });
+// ---------- Users ----------
 
-  return {
-    data: {
-      token: res.data.data.token,
-      admin: res.data.data.admin,
-    },
-  };
+export async function getUser(id: string) {
+  return (await API.get<AuthUser>(`/users/${id}`)).data;
 }
 
-export async function adminGetMenuItems() {
-  const res = await API.get("/menu");
-  return res.data;
+export async function updateUser(id: string, data: Pick<AuthUser, "name" | "phone" | "address">) {
+  return (await API.patch<AuthUser>(`/users/${id}`, data)).data;
 }
 
-export async function adminAddMenuItem(data: any) {
-  const res = await API.post("/menu", data);
-  return res.data;
+// ---------- Menu ----------
+
+export type MenuItemInput = Omit<FoodItem, "id" | "lastUpdated">;
+
+export async function getMenuItems() {
+  return (await API.get<FoodItem[]>("/menu")).data;
 }
 
-export async function adminUpdateMenuItem(id: string, data: any) {
-  const res = await API.patch(`/menu/${id}`, data);
-  return res.data;
+export async function addMenuItem(data: MenuItemInput) {
+  return (await API.post<FoodItem>("/menu", data)).data;
 }
 
-export async function adminDeleteMenuItem(id: string) {
-  const res = await API.delete(`/menu/${id}`);
-  return res.data;
+export async function updateMenuItem(id: string, data: Partial<MenuItemInput>) {
+  return (await API.patch<FoodItem>(`/menu/${id}`, data)).data;
 }
 
-export async function adminGetOrders() {
-  const res = await API.get("/orders");
-  return res.data;
+export async function deleteMenuItem(id: string) {
+  await API.delete(`/menu/${id}`);
 }
 
-export async function adminUpdateOrderStatus(id: string, status: string) {
-  const res = await API.patch(`/orders/${id}`, {
-    status,
-  });
-  return res.data;
+// ---------- Orders ----------
+
+export type NewOrder = Pick<
+  Order,
+  "customerName" | "customerEmail" | "customerPhone" | "customerAddress" | "paymentMethod" | "deliveryNotes"
+> & { items: Pick<OrderItem, "id" | "quantity">[] };
+
+/** Customers get their own orders; admins get every order. */
+export async function getOrders() {
+  return (await API.get<Order[]>("/orders")).data;
 }
 
-export async function getInventory() {
-  const res = await API.get("/inventory");
-  return res.data;
+export async function placeOrder(order: NewOrder) {
+  return (await API.post<Order>("/orders", order)).data;
 }
 
-export async function updateInventory(id: string, data: any) {
-  const res = await API.patch(`/inventory/${id}`, data);
-  return res.data;
+export async function updateOrderStatus(id: string, status: OrderStatus) {
+  return (await API.patch<Order>(`/orders/${id}`, { status })).data;
 }
+
+// ---------- Reviews ----------
 
 export async function getReviews() {
-  const res = await API.get("/reviews");
-  return res.data;
+  return (await API.get<Review[]>("/reviews")).data;
 }
 
-export async function addReview(data: any) {
-  const res = await API.post("/reviews", data);
-  return res.data;
+export async function addReview(data: {
+  orderId: string;
+  foodItemId: string;
+  rating: number;
+  comment: string;
+}) {
+  return (await API.post<Review>("/reviews", data)).data;
 }
 
 export async function deleteReview(id: string) {
-  const res = await API.delete(`/reviews/${id}`);
-  return res.data;
+  await API.delete(`/reviews/${id}`);
+}
+
+// ---------- Cart ----------
+
+type ServerCartItem = Omit<CartItem, "id" | "cartItemId"> & { id: string; menuId: string };
+
+function toCartItem(item: ServerCartItem): CartItem {
+  return {
+    id: String(item.menuId),
+    cartItemId: String(item.id),
+    name: item.name,
+    description: item.description || "",
+    price: Number(item.price),
+    category: item.category || "",
+    image: item.image || "",
+    quantity: Number(item.quantity) || 1,
+  };
+}
+
+export async function getCart() {
+  return (await API.get<ServerCartItem[]>("/cart_items")).data.map(toCartItem);
+}
+
+export async function addToCart(menuId: string) {
+  return toCartItem((await API.post<ServerCartItem>("/cart_items", { menuId })).data);
+}
+
+export async function setCartQuantity(cartItemId: string, quantity: number) {
+  return toCartItem((await API.patch<ServerCartItem>(`/cart_items/${cartItemId}`, { quantity })).data);
+}
+
+export async function removeFromCart(cartItemId: string) {
+  await API.delete(`/cart_items/${cartItemId}`);
+}
+
+export async function clearCart() {
+  await API.delete("/cart_items");
 }

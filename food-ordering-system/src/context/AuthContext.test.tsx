@@ -6,6 +6,8 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 vi.mock("../services/api", () => ({
   loginCustomer: vi.fn(),
   registerCustomer: vi.fn(),
+  getErrorMessage: (err: unknown, fallback: string) =>
+    err instanceof Error ? err.message : fallback,
 }));
 
 vi.mock("../utils/storage", () => ({
@@ -17,10 +19,13 @@ vi.mock("../utils/storage", () => ({
 import { loginCustomer, registerCustomer } from "../services/api";
 import { getStoredItem, setStoredItem, removeStoredItem } from "../utils/storage";
 
+const mockLogin = vi.mocked(loginCustomer);
+const mockRegister = vi.mocked(registerCustomer);
+
 describe("AuthContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    (getStoredItem as any).mockReturnValue(null);
+    vi.mocked(getStoredItem).mockReturnValue(null);
   });
 
   it("initializes with null user and token", () => {
@@ -34,10 +39,10 @@ describe("AuthContext", () => {
   });
 
   it("handles successful login", async () => {
-    const mockUser = { id: "1", email: "user@example.com", role: "user" };
+    const mockUser = { id: "1", email: "user@example.com", role: "user" as const };
     const mockToken = "mock-token";
 
-    (loginCustomer as any).mockResolvedValue({
+    mockLogin.mockResolvedValue({
       data: { token: mockToken, customer: mockUser },
     });
 
@@ -46,8 +51,8 @@ describe("AuthContext", () => {
     });
 
     await act(async () => {
-      const success = await result.current.login("user@example.com", "Password123");
-      expect(success).toBe(true);
+      const user = await result.current.login("user@example.com", "Password123");
+      expect(user).toEqual(mockUser);
     });
 
     await waitFor(() => {
@@ -61,7 +66,7 @@ describe("AuthContext", () => {
   });
 
   it("handles failed login", async () => {
-    (loginCustomer as any).mockRejectedValue(
+    mockLogin.mockRejectedValue(
       new Error("Invalid credentials")
     );
 
@@ -70,8 +75,8 @@ describe("AuthContext", () => {
     });
 
     await act(async () => {
-      const success = await result.current.login("user@example.com", "WrongPassword");
-      expect(success).toBe(false);
+      const user = await result.current.login("user@example.com", "WrongPassword");
+      expect(user).toBeNull();
     });
 
     expect(result.current.error).toBeTruthy();
@@ -79,10 +84,10 @@ describe("AuthContext", () => {
   });
 
   it("handles remember me option", async () => {
-    const mockUser = { id: "1", email: "user@example.com", role: "user" };
+    const mockUser = { id: "1", email: "user@example.com", role: "user" as const };
     const mockToken = "mock-token";
 
-    (loginCustomer as any).mockResolvedValue({
+    mockLogin.mockResolvedValue({
       data: { token: mockToken, customer: mockUser },
     });
 
@@ -98,7 +103,7 @@ describe("AuthContext", () => {
   });
 
   it("handles successful registration", async () => {
-    (registerCustomer as any).mockResolvedValue({ data: {} });
+    mockRegister.mockResolvedValue({ data: { token: "t", customer: { id: "2" } } });
 
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
@@ -118,7 +123,7 @@ describe("AuthContext", () => {
   });
 
   it("handles failed registration", async () => {
-    (registerCustomer as any).mockRejectedValue(
+    mockRegister.mockRejectedValue(
       new Error("Email already exists")
     );
 

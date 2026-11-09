@@ -1,151 +1,138 @@
 const express = require("express");
 const router = express.Router();
 const { getCollection, setCollection } = require("../data/db");
-const { requireAuth, requireAdmin } = require("../middleware/auth");
+const { requireAuth } = require("../middleware/auth");
+const { newId } = require("../data/helpers");
 
-const statusFromStock = (stock) => {
-  if (stock <= 0) return "Out of Stock";
-  if (stock < 10) return "Low Stock";
-  return "Available";
-};
+const ORDER_STATUSES = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
+const CUSTOMER_CANCELLABLE = ["Pending", "Preparing"];
 
-const findItemByIdOrName = (items, id, name) => {
-  if (id) {
-    const byId = items.find((item) => String(item.id) === String(id));
-    if (byId) return byId;
+const isAdminRequest = (req) => req.user?.role === "admin";
+const ownsOrder = (req, order) => String(order.customerId) === String(req.user?.id);
+
+// Add (positive) or remove (negative) stock for each ordered item.
+function adjustStock(orderItems, direction) {
+  const menu = getCollection("menu");
+  const now = new Date().toISOString();
+
+  for (const ordered of orderItems) {
+    const menuItem = menu.find((m) => String(m.id) === String(ordered.id));
+    if (!menuItem) continue;
+    menuItem.stock = Math.max(0, Number(menuItem.stock || 0) + direction * ordered.quantity);
+    menuItem.available = menuItem.stock > 0;
+    menuItem.lastUpdated = now;
   }
 
-  if (name) {
-    const lowered = String(name).toLowerCase();
-    return items.find(
-      (item) => String(item.name || "").toLowerCase() === lowered,
-    );
-  }
-
-  return undefined;
-};
+  setCollection("menu", menu);
+}
 
 router.get("/", requireAuth, (req, res) => {
-  let orders = getCollection("orders");
-  if (req.query.customerId) {
-    orders = orders.filter((o) => o.customerId === req.query.customerId);
-  }
-  return res.json(orders);
+  const orders = getCollection("orders");
+  // Customers only ever see their own orders.
+  return res.json(isAdminRequest(req) ? orders : orders.filter((o) => ownsOrder(req, o)));
 });
 
 router.get("/:id", requireAuth, (req, res) => {
-  const orders = getCollection("orders");
-  const order = orders.find((o) => o.id === req.params.id);
-  if (!order) return res.status(404).json({ message: "Order not found." });
+  const order = getCollection("orders").find((o) => o.id === req.params.id);
+  if (!order || (!isAdminRequest(req) && !ownsOrder(req, order)))
+    return res.status(404).json({ message: "Order not found." });
   return res.json(order);
 });
 
 router.post("/", requireAuth, (req, res) => {
   const {
-    customerId,
+    customerName = "",
+    customerEmail = "",
+    customerPhone = "",
+    customerAddress = "",
+    items,
+    paymentMethod = "cash",
+    deliveryNotes = "",
+  } = req.body;
+
+  if (!Array.isArray(items) || items.length === 0)
+    return res.status(400).json({ message: "An order needs at least one item." });
+
+  // Prices and stock come from the menu, never from the client.
+  const menu = getCollection("menu");
+  const orderItems = [];
+  for (const requested of items) {
+    const quantity = Math.floor(Number(requested?.quantity));
+    const menuItem = menu.find((m) => String(m.id) === String(requested?.id));
+
+    if (!menuItem || !(quantity > 0))
+      return res.status(400).json({ message: "One of the items is no longer on the menu." });
+    if (menuItem.available === false || Number(menuItem.stock || 0) < quantity)
+      return res
+        .status(400)
+        .json({ message: `Sorry, only ${menuItem.stock || 0} ${menuItem.name} left in stock.` });
+
+    orderItems.push({
+      id: menuItem.id,
+      name: menuItem.name,
+      description: menuItem.description || "",
+      price: Number(menuItem.price),
+      category: menuItem.category || "",
+      quantity,
+    });
+  }
+
+  const total = orderItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const now = new Date().toISOString();
+  const newOrder = {
+    id: newId("order"),
+    customerId: String(req.user.id),
     customerName,
     customerEmail,
     customerPhone,
     customerAddress,
-    items,
-    subtotal,
+    items: orderItems,
+    subtotal: total,
     total,
-    paymentMethod = "cash",
-    deliveryNotes = "",
-    status = "Pending",
-  } = req.body;
-
-  if (!customerId || !items || items.length === 0)
-    return res
-      .status(400)
-      .json({ message: "customerId and items are required." });
-
-  const orders = getCollection("orders");
-  const newOrder = {
-    id: "order" + Date.now().toString(36),
-    customerId,
-    customerName: customerName || "",
-    customerEmail: customerEmail || "",
-    customerPhone: customerPhone || "",
-    customerAddress: customerAddress || "",
-    items,
-    subtotal: Number(subtotal || total || 0),
-    total: Number(total || subtotal || 0),
-    status,
+    status: "Pending",
     paymentMethod,
     deliveryNotes,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+    createdAt: now,
+    updatedAt: now,
   };
 
+  const orders = getCollection("orders");
   orders.push(newOrder);
   setCollection("orders", orders);
+  adjustStock(orderItems, -1);
 
-  const menuItems = getCollection("menu");
-  const inventoryItems = getCollection("inventory");
-  let menuChanged = false;
-  let inventoryChanged = false;
-
-  (items || []).forEach((item) => {
-    const itemId = item?.id || item?.menuId || item?.menu_id || "";
-    const itemName = item?.name || item?.foodName || item?.food_name || "";
-    const quantity = Math.max(0, Number(item?.quantity || 0));
-
-    if (!quantity) return;
-
-    const menuItem = findItemByIdOrName(menuItems, itemId, itemName);
-    if (menuItem) {
-      const nextStock = Math.max(0, Number(menuItem.stock || 0) - quantity);
-      menuItem.stock = nextStock;
-      menuItem.available = nextStock > 0;
-      menuItem.lastUpdated = new Date().toISOString();
-      menuChanged = true;
-    }
-
-    const inventoryItem = findItemByIdOrName(inventoryItems, itemId, itemName);
-    if (inventoryItem) {
-      const currentStock = Number(inventoryItem.stock || 0);
-      const nextStock = Math.max(0, currentStock - quantity);
-      inventoryItem.stock = nextStock;
-      inventoryItem.status = statusFromStock(nextStock);
-      inventoryItem.lastUpdated = new Date().toISOString();
-      inventoryChanged = true;
-    }
-  });
-
-  if (menuChanged) setCollection("menu", menuItems);
-  if (inventoryChanged) setCollection("inventory", inventoryItems);
   return res.status(201).json(newOrder);
 });
 
 router.patch("/:id", requireAuth, (req, res) => {
   const orders = getCollection("orders");
-  const idx = orders.findIndex((o) => o.id === req.params.id);
-  if (idx === -1) return res.status(404).json({ message: "Order not found." });
+  const order = orders.find((o) => o.id === req.params.id);
+  if (!order) return res.status(404).json({ message: "Order not found." });
 
-  const isAdmin = req.user?.role === "admin";
-  const isOwner = String(orders[idx].customerId) === String(req.user?.id);
-  const nextStatus =
-    req.body.status !== undefined ? String(req.body.status) : undefined;
-  const isCancelRequest = nextStatus?.toLowerCase() === "cancelled";
-  const currentStatus = String(orders[idx].status || "").toLowerCase();
+  const nextStatus = req.body.status;
+  if (!ORDER_STATUSES.includes(nextStatus))
+    return res.status(400).json({ message: `Status must be one of: ${ORDER_STATUSES.join(", ")}.` });
+
   const canCustomerCancel =
-    isOwner &&
-    isCancelRequest &&
-    ["pending", "preparing"].includes(currentStatus);
+    ownsOrder(req, order) &&
+    nextStatus === "Cancelled" &&
+    CUSTOMER_CANCELLABLE.includes(order.status);
 
-  if (!isAdmin && !canCustomerCancel) {
+  if (!isAdminRequest(req) && !canCustomerCancel)
     return res.status(403).json({ message: "Forbidden." });
+
+  if (order.status === "Cancelled" && nextStatus !== "Cancelled")
+    return res.status(400).json({ message: "A cancelled order cannot be reopened." });
+
+  // Put the stock back when an order is cancelled.
+  if (nextStatus === "Cancelled" && order.status !== "Cancelled") {
+    adjustStock(order.items || [], +1);
   }
 
-  const fields = ["status", "paymentMethod", "deliveryNotes", "updatedAt"];
-  fields.forEach((f) => {
-    if (req.body[f] !== undefined) orders[idx][f] = req.body[f];
-  });
-  orders[idx].updatedAt = new Date().toISOString();
-
+  order.status = nextStatus;
+  order.updatedAt = new Date().toISOString();
   setCollection("orders", orders);
-  return res.json(orders[idx]);
+  return res.json(order);
 });
 
 module.exports = router;

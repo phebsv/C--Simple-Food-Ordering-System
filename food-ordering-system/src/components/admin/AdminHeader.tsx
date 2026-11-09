@@ -1,6 +1,17 @@
 import C from "../../constants/colors";
-import type { AdminHeaderProps } from "../../interfaces";
+import type { ReactNode } from "react";
+import type { AdminProfile } from "../../types";
 import "./AdminHeader.css";
+
+type AdminHeaderProps = {
+  title: string;
+  subtitle: string;
+  adminProfile?: AdminProfile;
+  searchTerm?: string;
+  searchPlaceholder?: string;
+  onSearchChange?: (value: string) => void;
+  actions?: ReactNode;
+};
 
 function AdminHeader({
   title,

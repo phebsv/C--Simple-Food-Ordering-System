@@ -1,22 +1,12 @@
-﻿import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import type { FoodItem } from "../types";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { CartItem, FoodItem } from "../types";
 import { useAuth } from "./AuthContext";
-import {
-  addToCart,
-  clearCart as clearBackendCart,
-  loadCartItems,
-  removeFromCart,
-  updateCartQuantity,
-} from "../services/cartApi";
-
-type CartItem = FoodItem & {
-  quantity: number;
-  cartItemId?: string;
-};
+import * as api from "../services/api";
 
 type CartContextType = {
   items: CartItem[];
   total: number;
+  itemCount: number;
   loading: boolean;
   addItem: (item: FoodItem) => void;
   removeItem: (id: string) => void;
@@ -26,96 +16,126 @@ type CartContextType = {
 
 const CartContext = createContext<CartContextType | null>(null);
 
+// The cart is updated in the UI straight away (optimistic) and then saved to the
+// server. If saving fails we reload the server copy so the two never drift apart.
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const { customer, isAuthenticated, isAdmin } = useAuth();
+  const customerId = isAuthenticated && !isAdmin ? customer?.id : undefined;
+  const [cart, setCart] = useState<{ ownerId?: string; items: CartItem[] }>({ items: [] });
   const [loading, setLoading] = useState(false);
-  const { customer } = useAuth();
 
-  useEffect(() => {
-    if (!customer?.id) {
-      setItems([]);
-      return;
-    }
-
-    setLoading(true);
-    loadCartItems(customer.id)
-      .then((loadedItems) => setItems(loadedItems))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [customer?.id]);
-
-  const total = useMemo(
-    () => items.reduce((sum, item) => sum + item.price * item.quantity, 0),
-    [items]
+  // Items from a previous user are never shown to the next one.
+  const items = useMemo(
+    () => (cart.ownerId === customerId ? cart.items : []),
+    [cart, customerId],
+  );
+  const setItems = useCallback(
+    (update: (prev: CartItem[]) => CartItem[]) =>
+      setCart((prev) => ({
+        ownerId: customerId,
+        items: update(prev.ownerId === customerId ? prev.items : []),
+      })),
+    [customerId],
   );
 
-  const addItem = (item: FoodItem) => {
-    setItems((prev) => {
-      const existing = prev.find((cartItem) => cartItem.id === item.id);
-      if (existing) {
-        return prev.map((cartItem) =>
-          cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
-            : cartItem
-        );
+  const reload = useCallback(async () => {
+    if (!customerId) return;
+    try {
+      const loaded = await api.getCart();
+      setCart({ ownerId: customerId, items: loaded });
+    } catch {
+      // Keep what we have; the next action will retry.
+    }
+  }, [customerId]);
+
+  useEffect(() => {
+    if (!customerId) return;
+    let cancelled = false;
+    // Loading flag is set inside the async callback, not synchronously in the effect.
+    Promise.resolve()
+      .then(() => {
+        if (!cancelled) setLoading(true);
+        return api.getCart();
+      })
+      .then((loaded) => {
+        if (!cancelled) setCart({ ownerId: customerId, items: loaded });
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
+
+  const findLine = useCallback(
+    (id: string) => items.find((item) => item.id === id),
+    [items],
+  );
+
+  const addItem = useCallback(
+    (item: FoodItem) => {
+      setItems((prev) =>
+        prev.some((line) => line.id === item.id)
+          ? prev.map((line) => (line.id === item.id ? { ...line, quantity: line.quantity + 1 } : line))
+          : [...prev, { ...item, quantity: 1 }],
+      );
+      api
+        .addToCart(item.id)
+        .then((saved) => setItems((prev) => prev.map((line) => (line.id === saved.id ? saved : line))))
+        .catch(reload);
+    },
+    [setItems, reload],
+  );
+
+  const removeItem = useCallback(
+    (id: string) => {
+      const line = findLine(id);
+      setItems((prev) => prev.filter((item) => item.id !== id));
+      if (line?.cartItemId) api.removeFromCart(line.cartItemId).catch(reload);
+    },
+    [findLine, setItems, reload],
+  );
+
+  const updateQuantity = useCallback(
+    (id: string, quantity: number) => {
+      if (quantity <= 0) {
+        removeItem(id);
+        return;
       }
-      return [...prev, { ...item, quantity: 1 }];
-    });
+      const line = findLine(id);
+      setItems((prev) => prev.map((item) => (item.id === id ? { ...item, quantity } : item)));
+      if (line?.cartItemId) api.setCartQuantity(line.cartItemId, quantity).catch(reload);
+    },
+    [findLine, removeItem, setItems, reload],
+  );
 
-    addToCart(item, customer?.id)
-      .then((saved) => {
-        setItems((prev) =>
-          prev.map((cartItem) =>
-            cartItem.id === saved.id ? saved : cartItem
-          )
-        );
-      })
-      .catch(() => {});
-  };
-
-  const updateQuantity = (id: string, quantity: number) => {
-    setItems((prev) =>
-      prev
-        .map((cartItem) =>
-          cartItem.id === id ? { ...cartItem, quantity } : cartItem
-        )
-        .filter((cartItem) => cartItem.quantity > 0)
-    );
-
-    updateCartQuantity(id, quantity, customer?.id)
-      .then((updated) => {
-        if (!updated) return;
-        setItems((prev) =>
-          prev.map((cartItem) =>
-            cartItem.id === updated.id ? updated : cartItem
-          )
-        );
-      })
-      .catch(() => {});
-  };
-
-  const removeItem = (id: string) => {
-    setItems((prev) => prev.filter((cartItem) => cartItem.id !== id));
-    removeFromCart(id, customer?.id).catch(() => {});
-  };
-
-  const clearCart = () => {
-    setItems([]);
-    clearBackendCart(customer?.id).catch(() => {});
-  };
+  const clearCart = useCallback(() => {
+    setItems(() => []);
+    api.clearCart().catch(reload);
+  }, [setItems, reload]);
 
   const value = useMemo(
-    () => ({ items, total, loading, addItem, removeItem, updateQuantity, clearCart }),
-    [items, total, loading, customer?.id]
+    () => ({
+      items,
+      total: items.reduce((sum, item) => sum + item.price * item.quantity, 0),
+      itemCount: items.reduce((sum, item) => sum + item.quantity, 0),
+      loading,
+      addItem,
+      removeItem,
+      updateQuantity,
+      clearCart,
+    }),
+    [items, loading, addItem, removeItem, updateQuantity, clearCart],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useCart() {
   const context = useContext(CartContext);
-  if (!context) {
-    throw new Error("useCart must be used within CartProvider");
-  }
+  if (!context) throw new Error("useCart must be used within CartProvider");
   return context;
 }

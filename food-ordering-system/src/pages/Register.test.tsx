@@ -142,7 +142,7 @@ describe("Register", () => {
     await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
-    expect(screen.getByText(/phone number must be between 10 and 11 digits/i)).toBeInTheDocument();
+    expect(screen.getByText(/11-digit mobile number/i)).toBeInTheDocument();
   });
 
   it("validates password strength (requires letter and number)", async () => {

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminModal from "../../components/admin/AdminModal";
@@ -54,7 +54,7 @@ export default function AdminMenu() {
 
   useEffect(() => {
     fetchMenuItems();
-  }, []);
+  }, [fetchMenuItems]);
 
   // ==================== FILTERING ====================
   const filteredItems = useMemo(() => {

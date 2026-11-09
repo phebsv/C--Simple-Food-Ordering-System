@@ -14,7 +14,6 @@ function AdminSidebar() {
     { label: "MENU", path: "/admin/menu" },
     { label: "INVENTORY", path: "/admin/inventory" },
     { label: "REVIEWS", path: "/admin/reviews" },
-    { label: "SETTINGS", path: "/admin/settings" },
   ];
 
   const handleLogout = () => {
@@ -84,10 +83,16 @@ function AdminSidebar() {
           const isActive = location.pathname === item.path;
 
           return (
-            <div
+            <button
+              type="button"
               key={item.label}
               onClick={() => navigate(item.path)}
+              aria-current={isActive ? "page" : undefined}
               style={{
+                display: "block",
+                width: "100%",
+                border: "none",
+                fontFamily: "inherit",
                 padding: "14px 10px",
                 textAlign: "center",
                 fontSize: "13px",
@@ -99,7 +104,7 @@ function AdminSidebar() {
               }}
             >
               {item.label}
-            </div>
+            </button>
           );
         })}
       </nav>

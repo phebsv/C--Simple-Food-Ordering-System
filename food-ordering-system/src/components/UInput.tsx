@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import C from "../constants/colors";
 
 interface IconProps {

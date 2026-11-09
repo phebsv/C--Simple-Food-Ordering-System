@@ -1,11 +1,13 @@
-﻿import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import { useAdmin } from "../../context/AdminContext";
-import type { AdminOrder, OrderStatus } from "../../interfaces";
+import type { Order, OrderStatus } from "../../types";
+import { getOrderTime, sortNewestFirst } from "../../utils/orderHelpers";
+import { formatPricePHP } from "../../utils/textHelpers";
 import "./AdminOrders.css";
 
 type FilterStatus = OrderStatus | "All";
@@ -13,34 +15,11 @@ type FilterStatus = OrderStatus | "All";
 const PAGE_SIZE = 10;
 const FALLBACK_TEXT = "Not provided";
 
-type AdminOrderWithDateFields = AdminOrder & {
-  created_at?: string;
-  order_date?: string;
-  timestamp?: string;
-  date?: string;
-};
-
-function getOrderTime(order: AdminOrderWithDateFields) {
-  const dateValue =
-    order.createdAt ??
-    order.created_at ??
-    order.order_date ??
-    order.timestamp ??
-    order.date ??
-    order.updatedAt;
-
-  return new Date(dateValue || 0).getTime() || 0;
-}
-
 function displayValue(value?: string) {
   return value?.trim() || FALLBACK_TEXT;
 }
 
-function formatCurrency(value?: number) {
-  return `₱${Number(value || 0).toFixed(2)}`;
-}
-
-function getOrderItemsPreview(order: AdminOrder) {
+function getOrderItemsPreview(order: Order) {
   if (!order.items.length) return "Item details unavailable";
 
   return order.items
@@ -63,7 +42,7 @@ export default function AdminOrders() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("All");
   const [page, setPage] = useState(1);
-  const [selectedOrder, setSelectedOrder] = useState<AdminOrder | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
@@ -75,7 +54,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [fetchOrders]);
 
   // Debounce search input to avoid heavy filtering on every keystroke
   useEffect(() => {
@@ -87,26 +66,27 @@ export default function AdminOrders() {
 
   // ==================== FILTERING ====================
   const filteredOrders = useMemo(() => {
-    return orders
-      .filter((order) => {
-        const query = debouncedSearchQuery.toLowerCase();
-        const itemText = order.items
-          .map((item) => item.name)
-          .join(" ")
-          .toLowerCase();
-        const matchesSearch =
-          !query ||
-          order.id.toLowerCase().includes(query) ||
-          order.customerName.toLowerCase().includes(query) ||
-          order.customerEmail.toLowerCase().includes(query) ||
-          itemText.includes(query);
+    return sortNewestFirst(
+      orders
+        .filter((order) => {
+          const query = debouncedSearchQuery.toLowerCase();
+          const itemText = order.items
+            .map((item) => item.name)
+            .join(" ")
+            .toLowerCase();
+          const matchesSearch =
+            !query ||
+            order.id.toLowerCase().includes(query) ||
+            order.customerName.toLowerCase().includes(query) ||
+            order.customerEmail.toLowerCase().includes(query) ||
+            itemText.includes(query);
 
-        const matchesStatus =
-          filterStatus === "All" || order.status === filterStatus;
+          const matchesStatus =
+            filterStatus === "All" || order.status === filterStatus;
 
-        return matchesSearch && matchesStatus;
-      })
-      .sort((a, b) => getOrderTime(b) - getOrderTime(a));
+          return matchesSearch && matchesStatus;
+        }),
+    );
   }, [orders, debouncedSearchQuery, filterStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
@@ -117,7 +97,7 @@ export default function AdminOrders() {
   }, [filteredOrders, currentPage]);
 
   // ==================== HANDLERS ====================
-  const handleOpenDetails = (order: AdminOrder) => {
+  const handleOpenDetails = (order: Order) => {
     setSelectedOrder(order);
     setIsDetailsOpen(true);
   };
@@ -264,7 +244,7 @@ export default function AdminOrders() {
                         )}
                       </div>
                     </td>
-                    <td className="order-total">{formatCurrency(order.total)}</td>
+                    <td className="order-total">{formatPricePHP(order.total)}</td>
                     <td>
                       <StatusBadge status={order.status} />
                     </td>
@@ -382,10 +362,10 @@ export default function AdminOrders() {
                         </div>
                         <div className="item-prices">
                           <span className="item-price">
-                            {formatCurrency(item.price)} each
+                            {formatPricePHP(item.price)} each
                           </span>
                           <span className="item-subtotal">
-                            {formatCurrency(item.price * item.quantity)}
+                            {formatPricePHP(item.price * item.quantity)}
                           </span>
                         </div>
                       </div>
@@ -399,11 +379,11 @@ export default function AdminOrders() {
                 <div className="summary-items">
                   <div className="summary-row">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(selectedOrder.subtotal)}</span>
+                    <span>{formatPricePHP(selectedOrder.subtotal)}</span>
                   </div>
                   <div className="summary-row total">
                     <span>Total</span>
-                    <span>{formatCurrency(selectedOrder.total)}</span>
+                    <span>{formatPricePHP(selectedOrder.total)}</span>
                   </div>
                 </div>
               </div>

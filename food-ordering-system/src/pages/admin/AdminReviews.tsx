@@ -1,11 +1,11 @@
-﻿import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import { useAdmin } from "../../context/AdminContext";
-import type { Review } from "../../interfaces";
+import type { Review } from "../../types";
 import "./AdminReviews.css";
 
 type RatingFilter = "All" | 5 | 4 | 3 | 2 | 1;
@@ -46,7 +46,7 @@ export default function AdminReviews() {
 
   useEffect(() => {
     fetchReviews();
-  }, []);
+  }, [fetchReviews]);
 
   // ==================== FILTERING ====================
   const filteredReviews = useMemo(() => {
