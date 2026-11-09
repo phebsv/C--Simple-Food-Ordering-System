@@ -657,3 +657,61 @@
   z-index: 1;
 }
 
+
+/* Search box and item details */
+.menu-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.65rem 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(200, 0, 10, 0.25);
+  border-radius: 999px;
+  font: inherit;
+  background: #fff;
+}
+
+.menu-search-input:focus {
+  outline: 2px solid var(--red, #c8000a);
+  outline-offset: 1px;
+}
+
+.menu-no-results {
+  text-align: center;
+  color: #888080;
+  padding: 2rem 0;
+}
+
+.menu-card-details-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+.menu-card-name-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-card-name-btn:hover,
+.menu-card-name-btn:focus-visible {
+  text-decoration: underline;
+}
+
+.menu-details-price {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--red, #c8000a);
+}
+
+.menu-details-meta {
+  font-size: 0.9rem;
+  color: #888080;
+}

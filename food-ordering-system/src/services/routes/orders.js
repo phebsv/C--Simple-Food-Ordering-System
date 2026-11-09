@@ -2,7 +2,9 @@ const express = require("express");
 const router = express.Router();
 const { getCollection, setCollection } = require("../data/db");
 const { requireAuth } = require("../middleware/auth");
-const { newId } = require("../data/helpers");
+const { LIMITS, newId, cleanText, isValidPhone } = require("../data/helpers");
+
+const PAYMENT_METHODS = ["cash", "credit-card", "debit-card"];
 
 const ORDER_STATUSES = ["Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
 const CUSTOMER_CANCELLABLE = ["Pending", "Preparing"];
@@ -40,18 +42,22 @@ router.get("/:id", requireAuth, (req, res) => {
 });
 
 router.post("/", requireAuth, (req, res) => {
-  const {
-    customerName = "",
-    customerEmail = "",
-    customerPhone = "",
-    customerAddress = "",
-    items,
-    paymentMethod = "cash",
-    deliveryNotes = "",
-  } = req.body;
+  const { items } = req.body;
+  const customerName = cleanText(req.body.customerName, LIMITS.name);
+  const customerEmail = cleanText(req.body.customerEmail, LIMITS.email);
+  const customerPhone = cleanText(req.body.customerPhone, LIMITS.phone);
+  const customerAddress = cleanText(req.body.customerAddress, LIMITS.address);
+  const deliveryNotes = cleanText(req.body.deliveryNotes, LIMITS.notes);
+  const paymentMethod = req.body.paymentMethod ?? "cash";
 
   if (!Array.isArray(items) || items.length === 0)
     return res.status(400).json({ message: "An order needs at least one item." });
+  if (customerName.length < 2 || customerAddress.length < 10 || !isValidPhone(customerPhone))
+    return res
+      .status(400)
+      .json({ message: "Please give a full name, a valid mobile number and a complete address." });
+  if (!PAYMENT_METHODS.includes(paymentMethod))
+    return res.status(400).json({ message: "Unknown payment method." });
 
   // Prices and stock come from the menu, never from the client.
   const menu = getCollection("menu");

@@ -45,7 +45,7 @@ export default function Checkout() {
     setLoading(true);
     try {
       // The server looks up prices and stock itself; we only send ids and quantities.
-      await placeOrder({
+      const order = await placeOrder({
         customerName: name.trim(),
         customerEmail: customer?.email ?? "",
         customerPhone: phone.trim(),
@@ -55,7 +55,7 @@ export default function Checkout() {
         deliveryNotes: notes.trim(),
       });
       clearCart();
-      navigate("/my-orders");
+      navigate("/order-confirmation", { state: { order }, replace: true });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to place order."));
     } finally {

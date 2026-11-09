@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
+import ChangePassword from "../../components/ChangePassword";
 import { useAuth } from "../../context/AuthContext";
 import { getErrorMessage, getUser, updateUser } from "../../services/api";
 import type { AuthUser } from "../../types";
@@ -171,6 +172,10 @@ export default function Profile() {
                 )}
               </div>
             </div>
+
+            <div className="profile-divider"></div>
+
+            <ChangePassword userId={currentUser.id} />
 
             <div className="profile-divider"></div>
 

@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { getCollection, setCollection } = require("../data/db");
 const { requireAuth, requireAdmin } = require("../middleware/auth");
-const { newId } = require("../data/helpers");
+const { LIMITS, newId, cleanText } = require("../data/helpers");
 
 router.get("/", requireAuth, (req, res) => {
   return res.json(getCollection("reviews"));
@@ -39,7 +39,7 @@ router.post("/", requireAuth, (req, res) => {
     foodItemId: String(item.id),
     foodItemName: item.name,
     rating: ratingNumber,
-    comment: String(comment).trim().slice(0, 500),
+    comment: cleanText(comment, LIMITS.comment),
     createdAt: new Date().toISOString(),
     hidden: false,
   };

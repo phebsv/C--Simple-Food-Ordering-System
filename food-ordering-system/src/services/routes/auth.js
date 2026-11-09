@@ -3,7 +3,17 @@ const bcrypt = require("bcryptjs");
 const router = express.Router();
 const { getCollection, setCollection } = require("../data/db");
 const { generateToken } = require("../middleware/auth");
-const { newId, sanitizeUser, isAdmin, normalize } = require("../data/helpers");
+const {
+  LIMITS,
+  newId,
+  sanitizeUser,
+  isAdmin,
+  normalize,
+  cleanText,
+  isValidEmail,
+  isValidPhone,
+  isStrongPassword,
+} = require("../data/helpers");
 
 function passwordMatches(user, password) {
   return Boolean(
@@ -33,19 +43,30 @@ function authResponse(res, user, message) {
 }
 
 router.post("/register", (req, res) => {
-  const { name, email, phone = "", password, address = "" } = req.body;
+  const name = cleanText(req.body.name, LIMITS.name);
+  const normalizedEmail = normalize(req.body.email);
+  const phone = cleanText(req.body.phone, LIMITS.phone);
+  const address = cleanText(req.body.address, LIMITS.address);
+  const { password } = req.body;
 
-  if (!name || !email || !password)
-    return res.status(400).json({ message: "Name, email, and password are required." });
+  if (name.length < 2)
+    return res.status(400).json({ message: "Please enter your full name." });
+  if (!isValidEmail(normalizedEmail))
+    return res.status(400).json({ message: "Please enter a valid email address." });
+  if (phone && !isValidPhone(phone))
+    return res.status(400).json({ message: "Please enter a valid mobile number." });
+  if (!isStrongPassword(password))
+    return res.status(400).json({
+      message: "Password must be 8-100 characters with at least one letter and one number.",
+    });
 
   const users = getCollection("users");
-  const normalizedEmail = normalize(email);
   if (users.some((u) => normalize(u.email) === normalizedEmail))
     return res.status(400).json({ message: "Email already registered." });
 
   const newUser = {
     id: newId(),
-    name: String(name).trim(),
+    name,
     email: normalizedEmail,
     phone,
     passwordHash: bcrypt.hashSync(String(password), 10),

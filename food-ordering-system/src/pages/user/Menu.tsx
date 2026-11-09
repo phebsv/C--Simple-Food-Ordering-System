@@ -5,7 +5,7 @@ import BgFood from "../../components/BgFood";
 import { useCart } from "../../context/CartContext";
 import { FALLBACK_FOOD_IMAGE, showFallbackImage } from "../../constants/images";
 import { getErrorMessage, getMenuItems, getReviews } from "../../services/api";
-import { averageRatings } from "../../utils/orderHelpers";
+import { LOW_STOCK_THRESHOLD, averageRatings } from "../../utils/orderHelpers";
 import { decodeHtmlEntities, formatPricePHP } from "../../utils/textHelpers";
 import type { FoodItem } from "../../types";
 import "./Dashboard.css";
@@ -21,8 +21,11 @@ type MenuListProps = {
   hiddenCategories: string[];
   onCategoryToggle: (category: string) => void;
   onAddToCart: (item: FoodItem) => void;
+  onShowDetails: (item: FoodItem) => void;
   selectedItemId: string | null;
   ratings: Ratings;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
 };
 
 function MenuList({
@@ -31,8 +34,11 @@ function MenuList({
   hiddenCategories,
   onCategoryToggle,
   onAddToCart,
+  onShowDetails,
   selectedItemId,
   ratings,
+  searchQuery,
+  onSearchChange,
 }: MenuListProps) {
   return (
     <section className="menu-section">
@@ -43,6 +49,14 @@ function MenuList({
       </div>
 
       <div className="menu-filter-panel">
+        <input
+          type="search"
+          className="menu-search-input"
+          placeholder="Search food by name or description..."
+          aria-label="Search menu"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+        />
         <h3>Filter by category</h3>
         <div className="menu-filter-options">
           {categories.map((category) => (
@@ -58,6 +72,10 @@ function MenuList({
         </div>
       </div>
 
+      {items.length === 0 && (
+        <p className="menu-no-results">No food matches your search.</p>
+      )}
+
       <div className="menu-grid">
         {items.map((item) => {
           const rating = ratings[item.id];
@@ -67,17 +85,30 @@ function MenuList({
               key={item.id}
               className={`menu-card ${selectedItemId === item.id ? "menu-card-active" : ""}`}
             >
-              <div className="menu-card-image-container">
+              <button
+                type="button"
+                className="menu-card-image-container menu-card-details-btn"
+                onClick={() => onShowDetails(item)}
+                aria-label={`View details for ${decodeHtmlEntities(item.name)}`}
+              >
                 <img
                   src={item.image || FALLBACK_FOOD_IMAGE}
                   alt={decodeHtmlEntities(item.name)}
                   className="menu-card-image"
                   onError={showFallbackImage}
                 />
-              </div>
+              </button>
               <div className="menu-card-content">
                 <div className="menu-card-title">
-                  <h4>{decodeHtmlEntities(item.name)}</h4>
+                  <h4>
+                    <button
+                      type="button"
+                      className="menu-card-name-btn"
+                      onClick={() => onShowDetails(item)}
+                    >
+                      {decodeHtmlEntities(item.name)}
+                    </button>
+                  </h4>
                   <span className="menu-card-price">{formatPricePHP(item.price)}</span>
                 </div>
                 <p className="menu-card-description">{item.description}</p>
@@ -118,6 +149,8 @@ export default function Menu() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [addedItem, setAddedItem] = useState<FoodItem | null>(null);
+  const [detailsItem, setDetailsItem] = useState<FoodItem | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { items: cartItems, addItem } = useCart();
   const navigate = useNavigate();
 
@@ -159,7 +192,14 @@ export default function Menu() {
     [menuItems],
   );
 
-  const visibleMenuItems = menuItems.filter((item) => !hiddenCategories.includes(item.category));
+  const query = searchQuery.trim().toLowerCase();
+  const visibleMenuItems = menuItems.filter(
+    (item) =>
+      !hiddenCategories.includes(item.category) &&
+      (!query ||
+        decodeHtmlEntities(item.name).toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query)),
+  );
 
   const handleCategoryToggle = (category: string) => {
     setHiddenCategories((prev) =>
@@ -174,6 +214,7 @@ export default function Menu() {
       return;
     }
     setNotice(null);
+    setDetailsItem(null);
     addItem(item);
     setSelectedItemId(item.id);
     setAddedItem(item);
@@ -256,13 +297,81 @@ export default function Menu() {
                   hiddenCategories={hiddenCategories}
                   onCategoryToggle={handleCategoryToggle}
                   onAddToCart={handleAddToCart}
+                  onShowDetails={setDetailsItem}
                   selectedItemId={selectedItemId}
                   ratings={ratings}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
                 />
               </>
             )}
           </div>
         </div>
+
+        {detailsItem && (
+          <div
+            className="menu-add-modal-overlay"
+            role="presentation"
+            onClick={() => setDetailsItem(null)}
+          >
+            <div
+              className="menu-add-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="menu-details-title"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                className="menu-add-modal-close"
+                onClick={() => setDetailsItem(null)}
+                aria-label="Close"
+              >
+                X
+              </button>
+
+              <div className="menu-add-modal-image">
+                <img
+                  src={detailsItem.image || FALLBACK_FOOD_IMAGE}
+                  alt={decodeHtmlEntities(detailsItem.name)}
+                  onError={showFallbackImage}
+                />
+              </div>
+
+              <div className="menu-add-modal-content">
+                <p className="menu-add-modal-kicker">{detailsItem.category}</p>
+                <h2 id="menu-details-title">{decodeHtmlEntities(detailsItem.name)}</h2>
+                <p className="menu-details-price">{formatPricePHP(detailsItem.price)}</p>
+                <p>{detailsItem.description || "No description yet."}</p>
+                <p className="menu-details-meta">
+                  {ratings[detailsItem.id]
+                    ? `★ ${ratings[detailsItem.id].average.toFixed(1)} (${ratings[detailsItem.id].count} review${ratings[detailsItem.id].count === 1 ? "" : "s"})`
+                    : "Not rated yet"}
+                  {detailsItem.stock !== undefined &&
+                    detailsItem.stock < LOW_STOCK_THRESHOLD &&
+                    ` · Only ${detailsItem.stock} left`}
+                </p>
+              </div>
+
+              <div className="menu-add-modal-actions">
+                <button
+                  type="button"
+                  className="menu-modal-secondary-btn"
+                  onClick={() => setDetailsItem(null)}
+                >
+                  Back to Menu
+                </button>
+                <button
+                  type="button"
+                  className="menu-modal-primary-btn"
+                  onClick={() => handleAddToCart(detailsItem)}
+                >
+                  Add to Cart
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {addedItem && (
           <div

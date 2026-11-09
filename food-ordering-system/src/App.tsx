@@ -12,6 +12,7 @@ import Cart from "./pages/user/Cart";
 import Checkout from "./pages/user/Checkout";
 import MyOrders from "./pages/user/MyOrders";
 import Profile from "./pages/user/Profile";
+import OrderConfirmation from "./pages/user/OrderConfirmation";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminMenu from "./pages/admin/AdminMenu";
 import AdminOrders from "./pages/admin/AdminOrders";
@@ -23,6 +24,7 @@ const customerRoutes: [string, ReactNode][] = [
   ["/menu", <Menu />],
   ["/cart", <Cart />],
   ["/checkout", <Checkout />],
+  ["/order-confirmation", <OrderConfirmation />],
   ["/my-orders", <MyOrders />],
   ["/profile", <Profile />],
 ];

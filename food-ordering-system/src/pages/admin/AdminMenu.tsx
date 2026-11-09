@@ -6,6 +6,7 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import { useAdmin } from "../../context/AdminContext";
 import type { FoodItem } from "../../types";
+import { getErrorMessage } from "../../services/api";
 import "./AdminMenu.css";
 
 type CategoryFilter = "All" | "Meals" | "Drinks" | "Snacks" | "Desserts";
@@ -16,8 +17,19 @@ interface FormData {
   price: string;
   description: string;
   image: string;
+  stock: string;
   available: boolean;
 }
+
+const EMPTY_FORM: FormData = {
+  name: "",
+  category: "Meals",
+  price: "",
+  description: "",
+  image: "",
+  stock: "",
+  available: true,
+};
 
 export default function AdminMenu() {
   const {
@@ -43,14 +55,7 @@ export default function AdminMenu() {
     isOpen: false,
   });
   const [actionLoading, setActionLoading] = useState(false);
-  const [formData, setFormData] = useState<FormData>({
-    name: "",
-    category: "Meals",
-    price: "",
-    description: "",
-    image: "",
-    available: true,
-  });
+  const [formData, setFormData] = useState<FormData>(EMPTY_FORM);
 
   useEffect(() => {
     fetchMenuItems();
@@ -71,14 +76,7 @@ export default function AdminMenu() {
   // ==================== FORM HANDLERS ====================
   const handleAddNew = () => {
     setEditingItem(null);
-    setFormData({
-      name: "",
-      category: "Meals",
-      price: "",
-      description: "",
-      image: "",
-      available: true,
-    });
+    setFormData(EMPTY_FORM);
     setIsFormOpen(true);
   };
 
@@ -90,6 +88,7 @@ export default function AdminMenu() {
       price: item.price.toString(),
       description: item.description,
       image: item.image || "",
+      stock: String(item.stock ?? 0),
       available: item.available ?? true,
     });
     setIsFormOpen(true);
@@ -115,30 +114,37 @@ export default function AdminMenu() {
       return;
     }
 
+    const stock = Number(formData.stock);
+    if (formData.stock.trim() === "" || !Number.isInteger(stock) || stock < 0) {
+      setError("Stock must be a whole number (0 or more)");
+      return;
+    }
+
+    if (formData.available && stock === 0) {
+      setError("Set a stock above 0, or untick \"Available for ordering\"");
+      return;
+    }
+
+    const payload = {
+      name: formData.name.trim(),
+      category: formData.category,
+      price,
+      description: formData.description.trim(),
+      image: formData.image.trim(),
+      stock,
+      available: formData.available,
+    };
+
     try {
       setActionLoading(true);
       if (editingItem) {
-        await updateMenuItem(editingItem.id, {
-          name: formData.name,
-          category: formData.category,
-          price,
-          description: formData.description,
-          image: formData.image,
-          available: formData.available,
-        });
+        await updateMenuItem(editingItem.id, payload);
       } else {
-        await addMenuItem({
-          name: formData.name,
-          category: formData.category,
-          price,
-          description: formData.description,
-          image: formData.image,
-          available: formData.available,
-        });
+        await addMenuItem(payload);
       }
       setIsFormOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save item");
+      setError(getErrorMessage(err, "Failed to save item"));
     } finally {
       setActionLoading(false);
     }
@@ -156,7 +162,7 @@ export default function AdminMenu() {
       await deleteMenuItem(confirmDialog.itemId);
       setConfirmDialog({ isOpen: false });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete item");
+      setError(getErrorMessage(err, "Failed to delete item"));
     } finally {
       setActionLoading(false);
     }
@@ -167,9 +173,7 @@ export default function AdminMenu() {
       setActionLoading(true);
       await toggleItemAvailability(itemId);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to toggle availability",
-      );
+      setError(getErrorMessage(err, "Failed to toggle availability"));
     } finally {
       setActionLoading(false);
     }
@@ -366,6 +370,22 @@ export default function AdminMenu() {
                   required
                 />
               </div>
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="stock">Stock *</label>
+              <input
+                id="stock"
+                type="number"
+                placeholder="0"
+                step="1"
+                min="0"
+                value={formData.stock}
+                onChange={(e) =>
+                  setFormData({ ...formData, stock: e.target.value })
+                }
+                required
+              />
             </div>
 
             <div className="form-group">

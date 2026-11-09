@@ -64,6 +64,10 @@ export async function getUser(id: string) {
   return (await API.get<AuthUser>(`/users/${id}`)).data;
 }
 
+export async function changePassword(id: string, currentPassword: string, newPassword: string) {
+  await API.post(`/users/${id}/password`, { currentPassword, newPassword });
+}
+
 export async function updateUser(id: string, data: Pick<AuthUser, "name" | "phone" | "address">) {
   return (await API.patch<AuthUser>(`/users/${id}`, data)).data;
 }
