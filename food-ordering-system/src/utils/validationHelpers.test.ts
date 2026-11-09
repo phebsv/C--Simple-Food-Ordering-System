@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   validateEmail,
-  validateUsername,
-  validateLoginId,
   validatePassword,
   validatePasswordMatch,
   validateName,
@@ -46,53 +44,6 @@ describe("Validation Helpers", () => {
       const result = validateEmail(longEmail);
       expect(result.valid).toBe(false);
       expect(result.error).toContain("100");
-    });
-  });
-
-  describe("validateUsername", () => {
-    it("validates correct username", () => {
-      const result = validateUsername("user_123");
-      expect(result.valid).toBe(true);
-    });
-
-    it("allows hyphens and underscores", () => {
-      const result = validateUsername("user-name_123");
-      expect(result.valid).toBe(true);
-    });
-
-    it("rejects username with special characters", () => {
-      const result = validateUsername("user@name");
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("letters, numbers");
-    });
-
-    it("rejects username shorter than 3 chars", () => {
-      const result = validateUsername("ab");
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("3");
-    });
-
-    it("rejects username longer than 20 chars", () => {
-      const result = validateUsername("a".repeat(21));
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("20");
-    });
-  });
-
-  describe("validateLoginId", () => {
-    it("validates email as login ID", () => {
-      const result = validateLoginId("user@example.com");
-      expect(result.valid).toBe(true);
-    });
-
-    it("validates username as login ID", () => {
-      const result = validateLoginId("user_123");
-      expect(result.valid).toBe(true);
-    });
-
-    it("rejects invalid email or username", () => {
-      const result = validateLoginId("ab");
-      expect(result.valid).toBe(false);
     });
   });
 
@@ -262,15 +213,7 @@ describe("Validation Helpers", () => {
   describe("validateLoginForm", () => {
     it("validates correct login form with email", () => {
       const result = validateLoginForm({
-        loginId: "user@example.com",
-        password: "Password123",
-      });
-      expect(result.valid).toBe(true);
-    });
-
-    it("validates correct login form with username", () => {
-      const result = validateLoginForm({
-        loginId: "user_123",
+        email: "user@example.com",
         password: "Password123",
       });
       expect(result.valid).toBe(true);
@@ -278,16 +221,15 @@ describe("Validation Helpers", () => {
 
     it("rejects login with weak password", () => {
       const result = validateLoginForm({
-        loginId: "user@example.com",
+        email: "user@example.com",
         password: "weak",
       });
       expect(result.valid).toBe(false);
     });
 
     it("rejects login with invalid email", () => {
-      // Without "@" the id is treated as a username, so use a malformed email.
       const result = validateLoginForm({
-        loginId: "user@notanemail",
+        email: "user@notanemail",
         password: "Password123",
       });
       expect(result.valid).toBe(false);

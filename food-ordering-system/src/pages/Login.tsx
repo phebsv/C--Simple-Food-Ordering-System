@@ -22,15 +22,14 @@ export default function Login() {
   const handleLogin = async () => {
     setLocalError("");
 
-    const loginId = email.trim();
+    const trimmedEmail = email.trim();
 
-    // Validate form data
-    const validation = validateLoginForm({ loginId, password });
+    const validation = validateLoginForm({ email: trimmedEmail, password });
     if (!validation.valid) {
       return setLocalError(validation.error || "Validation failed.");
     }
 
-    const user = await login(loginId, password, { remember });
+    const user = await login(trimmedEmail, password, { remember });
     if (user) {
       navigate(isAdminUser(user) ? "/admin/dashboard" : "/dashboard");
     }
@@ -67,9 +66,9 @@ export default function Login() {
             >
               <div className="login-input-group">
                 <UInput
-                  label="Email or username"
-                  type="text"
-                  placeholder="Enter your email or username"
+                  label="Email"
+                  type="email"
+                  placeholder="Enter your email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   Icon={MailIcon}

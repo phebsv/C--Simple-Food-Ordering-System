@@ -2,7 +2,7 @@
   "users": [
     {
       "id": "1",
-      "email": "admin",
+      "email": "admin@nomnom.com",
       "passwordHash": "$2a$10$Z7yIe9z6V1hG/HkG9ho23OMEX9xlch.3WEVR6SMBvET/6hkJ/m7ty",
       "name": "Admin",
       "role": "admin"

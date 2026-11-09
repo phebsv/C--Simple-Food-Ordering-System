@@ -21,13 +21,10 @@ function passwordMatches(user, password) {
   );
 }
 
-// Admins may sign in with their username or email; customers with their email.
-function findUserByLogin(users, loginId) {
-  const id = normalize(loginId);
-  return users.find(
-    (u) =>
-      normalize(u.email) === id || (isAdmin(u) && normalize(u.username) === id),
-  );
+// Everyone (customers and admins) signs in with their email address.
+function findUserByEmail(users, email) {
+  const id = normalize(email);
+  return users.find((u) => normalize(u.email) === id);
 }
 
 function authResponse(res, user, message) {
@@ -87,7 +84,7 @@ router.post("/login", (req, res) => {
   if (!email || !password)
     return res.status(400).json({ message: "Email and password are required." });
 
-  const user = findUserByLogin(getCollection("users"), email);
+  const user = findUserByEmail(getCollection("users"), email);
   if (!passwordMatches(user, password))
     return res.status(401).json({ message: "Invalid email or password." });
 

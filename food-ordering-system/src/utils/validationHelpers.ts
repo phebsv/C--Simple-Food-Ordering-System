@@ -1,7 +1,5 @@
 // Validation constants
 export const VALIDATION = {
-  USERNAME_MIN: 3,
-  USERNAME_MAX: 20,
   EMAIL_MIN: 5,
   EMAIL_MAX: 100,
   PASSWORD_MIN: 8,
@@ -12,9 +10,6 @@ export const VALIDATION = {
 
 // Email validation pattern (RFC5322 simplified)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-// Username: alphanumeric, underscore, hyphen only
-const USERNAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
 // Password strength requirements: letter + number
 const PASSWORD_LETTER_REGEX = /[A-Za-z]/;
@@ -39,46 +34,6 @@ export function validateEmail(email: string): { valid: boolean; error?: string }
   }
 
   return { valid: true };
-}
-
-/**
- * Validates username (for login)
- */
-export function validateUsername(username: string): { valid: boolean; error?: string } {
-  const trimmed = username.trim();
-
-  if (!trimmed) {
-    return { valid: false, error: "Username is required." };
-  }
-
-  if (trimmed.length < VALIDATION.USERNAME_MIN || trimmed.length > VALIDATION.USERNAME_MAX) {
-    return { valid: false, error: `Username must be between ${VALIDATION.USERNAME_MIN} and ${VALIDATION.USERNAME_MAX} characters.` };
-  }
-
-  if (!USERNAME_REGEX.test(trimmed)) {
-    return { valid: false, error: "Username can only contain letters, numbers, underscores, and hyphens." };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Validates login identifier (email or username)
- */
-export function validateLoginId(loginId: string): { valid: boolean; error?: string } {
-  const trimmed = loginId.trim();
-
-  if (!trimmed) {
-    return { valid: false, error: "Email or username is required." };
-  }
-
-  // Check if it's an email
-  if (loginId.includes("@")) {
-    return validateEmail(loginId);
-  }
-
-  // Otherwise treat as username
-  return validateUsername(loginId);
 }
 
 /**
@@ -219,11 +174,10 @@ export function validateRegisterForm(data: {
 /**
  * Validates all login form fields
  */
-export function validateLoginForm(data: { loginId: string; password: string }): { valid: boolean; error?: string } {
-  // Validate login ID (email or username)
-  const loginIdValidation = validateLoginId(data.loginId);
-  if (!loginIdValidation.valid) {
-    return loginIdValidation;
+export function validateLoginForm(data: { email: string; password: string }): { valid: boolean; error?: string } {
+  const emailValidation = validateEmail(data.email);
+  if (!emailValidation.valid) {
+    return emailValidation;
   }
 
   // Validate password

@@ -22,11 +22,11 @@ describe("Login", () => {
       </MemoryRouter>,
     );
     expect(screen.getByRole("heading", { name: /Sign in/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Enter your email or username/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Enter your email address/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Enter your Password/i)).toBeInTheDocument();
   });
 
-  it("validates email or username is required", async () => {
+  it("validates email is required", async () => {
     const user = userEvent.setup();
     render(
       <MemoryRouter>
@@ -37,7 +37,7 @@ describe("Login", () => {
     await user.type(screen.getByPlaceholderText(/Enter your Password/i), "Password123");
     await user.click(screen.getByRole("button", { name: /Login/i }));
 
-    expect(screen.getByText(/Email or username is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/Email is required/i)).toBeInTheDocument();
   });
 
   it("validates password is required", async () => {
@@ -49,7 +49,7 @@ describe("Login", () => {
     );
 
     await user.type(
-      screen.getByPlaceholderText(/Enter your email or username/i),
+      screen.getByPlaceholderText(/Enter your email address/i),
       "juan@example.com",
     );
     await user.click(screen.getByRole("button", { name: /Login/i }));
@@ -66,7 +66,7 @@ describe("Login", () => {
     );
 
     await user.type(
-      screen.getByPlaceholderText(/Enter your email or username/i),
+      screen.getByPlaceholderText(/Enter your email address/i),
       "juan@example.com",
     );
     await user.type(screen.getByPlaceholderText(/Enter your Password/i), "password");
@@ -84,7 +84,7 @@ describe("Login", () => {
     );
 
     await user.type(
-      screen.getByPlaceholderText(/Enter your email or username/i),
+      screen.getByPlaceholderText(/Enter your email address/i),
       "juan@example.com",
     );
     await user.type(screen.getByPlaceholderText(/Enter your Password/i), "Pass1");
@@ -102,7 +102,7 @@ describe("Login", () => {
     );
 
     await user.type(
-      screen.getByPlaceholderText(/Enter your email or username/i),
+      screen.getByPlaceholderText(/Enter your email address/i),
       "juan@example.com",
     );
     await user.type(screen.getByPlaceholderText(/Enter your Password/i), "Password123");
@@ -112,24 +112,6 @@ describe("Login", () => {
     expect(screen.queryByText(/required|invalid|must be/i)).not.toBeInTheDocument();
   });
 
-  it("accepts valid username and password", async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
-
-    await user.type(
-      screen.getByPlaceholderText(/Enter your email or username/i),
-      "user_123",
-    );
-    await user.type(screen.getByPlaceholderText(/Enter your Password/i), "Password123");
-    await user.click(screen.getByRole("button", { name: /Login/i }));
-
-    // Should not show error
-    expect(screen.queryByText(/required|invalid|must be/i)).not.toBeInTheDocument();
-  });
 
   it("has remember me checkbox", () => {
     render(
