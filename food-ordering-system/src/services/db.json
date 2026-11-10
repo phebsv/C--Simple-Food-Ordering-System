@@ -15,8 +15,18 @@
       "passwordHash": "$2a$10$.gl0Np6xq8eeg6AMfQN6ZeStEhR1ORuA3IHVyQp/eYpQSlrOgVW86",
       "address": "",
       "role": "user"
+    },
+    {
+      "id": "mw9fptk99c6og7",
+      "name": "christian demetillo",
+      "email": "dmtchrs@gmail.com",
+      "phone": "09617095667",
+      "passwordHash": "$2a$10$81Gxzp56yNaZ8LjoJJHnOehoM/3JtF8RZ0sUamhtdqN91AjQdY7Xe",
+      "address": "",
+      "role": "user"
     }
   ],
+  "admins": [],
   "menu": [
     {
       "id": "1",
@@ -150,6 +160,7 @@
       "updatedAt": "2026-05-16T03:12:29.662Z"
     }
   ],
+  "inventory": [],
   "reviews": [],
   "cart_items": []
 }
