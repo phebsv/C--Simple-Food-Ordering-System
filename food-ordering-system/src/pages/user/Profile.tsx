@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
 import ChangePassword from "../../components/ChangePassword";
@@ -10,8 +9,7 @@ import { validatePhoneNumber } from "../../utils/validationHelpers";
 import "./Profile.css";
 
 export default function Profile() {
-  const { customer, updateCustomer, logout } = useAuth();
-  const navigate = useNavigate();
+  const { customer, updateCustomer } = useAuth();
   // Route guard guarantees a logged-in customer here.
   const currentUser = customer as AuthUser;
 
@@ -21,7 +19,6 @@ export default function Profile() {
   const [name, setName] = useState(currentUser.name ?? "");
   const [phone, setPhone] = useState(currentUser.phone ?? "");
   const [address, setAddress] = useState(currentUser.address ?? "");
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const email = currentUser.email ?? "";
 
   const resetForm = (user: AuthUser) => {
@@ -71,11 +68,6 @@ export default function Profile() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
   };
 
   return (
@@ -176,39 +168,6 @@ export default function Profile() {
             <div className="profile-divider"></div>
 
             <ChangePassword userId={currentUser.id} />
-
-            <div className="profile-divider"></div>
-
-            <div className="profile-section">
-              <h2>Account Actions</h2>
-
-              {!showLogoutConfirm ? (
-                <button
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="profile-btn profile-btn-logout"
-                >
-                  Logout
-                </button>
-              ) : (
-                <div className="logout-confirm">
-                  <p>Are you sure you want to logout?</p>
-                  <div className="confirm-buttons">
-                    <button
-                      onClick={() => setShowLogoutConfirm(false)}
-                      className="confirm-btn confirm-btn-cancel"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleLogout}
-                      className="confirm-btn confirm-btn-logout"
-                    >
-                      Logout
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
