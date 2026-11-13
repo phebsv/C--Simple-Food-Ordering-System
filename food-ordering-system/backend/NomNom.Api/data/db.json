@@ -3,30 +3,38 @@
     {
       "id": "1",
       "email": "admin@nomnom.com",
-      "passwordHash": "$2a$10$Z7yIe9z6V1hG/HkG9ho23OMEX9xlch.3WEVR6SMBvET/6hkJ/m7ty",
       "name": "Admin",
-      "role": "admin"
+      "role": "admin",
+      "passwordHash": "$2a$10$Z7yIe9z6V1hG/HkG9ho23OMEX9xlch.3WEVR6SMBvET/6hkJ/m7ty"
     },
     {
       "id": "mp7rordsfjr8ibujoxl",
-      "name": "Robert Avelino",
       "email": "robert@gmail.com",
-      "phone": "09291052281",
+      "name": "Robert Avelino",
+      "role": "user",
       "passwordHash": "$2a$10$.gl0Np6xq8eeg6AMfQN6ZeStEhR1ORuA3IHVyQp/eYpQSlrOgVW86",
-      "address": "",
-      "role": "user"
+      "phone": "09291052281",
+      "address": ""
     },
     {
       "id": "mw9fptk99c6og7",
-      "name": "christian demetillo",
       "email": "dmtchrs@gmail.com",
-      "phone": "09617095667",
+      "name": "christian demetillo",
+      "role": "user",
       "passwordHash": "$2a$10$81Gxzp56yNaZ8LjoJJHnOehoM/3JtF8RZ0sUamhtdqN91AjQdY7Xe",
-      "address": "",
-      "role": "user"
+      "phone": "09617095667",
+      "address": ""
+    },
+    {
+      "id": "fd27ae2d4b6141d5965d3f1a964a718c",
+      "email": "jiyong@gmail.com",
+      "name": "saydon avelino",
+      "role": "user",
+      "passwordHash": "$2a$10$AiazuDxcufSJLwECLRqZ3.INM4UmzQ.j0mK87rcVE5fGrQb/FcD5a",
+      "phone": "09611339829",
+      "address": ""
     }
   ],
-  "admins": [],
   "menu": [
     {
       "id": "1",
@@ -111,7 +119,7 @@
       "description": "thick milo",
       "price": 849.86,
       "category": "Drinks",
-      "image": "https://th.bing.com/th/id/OIP.7QHS79goseDLskj7gwuAhQHaHa?w=191&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+      "image": "https://th.bing.com/th/id/OIP.7QHS79goseDLskj7gwuAhQHaHa?w=191\u0026h=192\u0026c=7\u0026r=0\u0026o=7\u0026dpr=1.3\u0026pid=1.7\u0026rm=3",
       "available": true,
       "stock": 14,
       "lastUpdated": "2026-05-16T02:50:52.276Z"
@@ -155,12 +163,13 @@
       "total": 389,
       "status": "Delivered",
       "paymentMethod": "cash",
-      "deliveryNotes": "",
       "createdAt": "2026-05-16T03:10:59.290Z",
-      "updatedAt": "2026-05-16T03:12:29.662Z"
+      "updatedAt": "2026-05-16T03:12:29.662Z",
+      "deliveryNotes": ""
     }
   ],
-  "inventory": [],
   "reviews": [],
-  "cart_items": []
+  "cart_items": [],
+  "admins": [],
+  "inventory": []
 }
