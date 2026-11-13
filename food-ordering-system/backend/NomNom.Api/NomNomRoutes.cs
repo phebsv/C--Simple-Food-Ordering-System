@@ -11,5 +11,7 @@ internal static class NomNomRoutes
             Results.Json(await service.RegisterAsync(request, ct), statusCode: 201));
         app.MapPost("/auth/login", (LoginRequest request, IAccountService service, CancellationToken ct) =>
             service.LoginAsync(request, ct));
+        app.MapGet("/menu", async (string? category, string? search, IMenuService service, CancellationToken ct) =>
+            Results.Ok(await service.ListAsync(category, search, ct)));
     }
 }

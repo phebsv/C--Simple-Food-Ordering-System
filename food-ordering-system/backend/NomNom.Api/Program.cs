@@ -9,6 +9,7 @@ builder.Services.AddSingleton<INomNomStore>(new JsonNomNomStore(
     Path.GetFullPath(databasePath, builder.Environment.ContentRootPath)));
 builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddSingleton<IAccountService, AccountService>();
+builder.Services.AddSingleton<IMenuService, MenuService>();
 var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<string[]>()
     ?? (builder.Environment.IsDevelopment() ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
