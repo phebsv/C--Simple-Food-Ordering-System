@@ -28,4 +28,10 @@ internal sealed class MenuService(INomNomStore store) : IMenuService
 
         return items.ToList();
     }
+    public async Task<MenuItem> GetAsync(string id, CancellationToken cancellationToken)
+    {
+        var data = await store.ReadAsync(cancellationToken);
+        return data.Menu.Find(item => item.Id == id)
+            ?? throw ApiError.NotFound("Menu item not found.");
+    }
 }

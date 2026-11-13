@@ -13,5 +13,7 @@ internal static class NomNomRoutes
             service.LoginAsync(request, ct));
         app.MapGet("/menu", async (string? category, string? search, IMenuService service, CancellationToken ct) =>
             Results.Ok(await service.ListAsync(category, search, ct)));
+        app.MapGet("/menu/{id}", async (string id, IMenuService service, CancellationToken ct) =>
+            Results.Ok(await service.GetAsync(id, ct)));
     }
 }
