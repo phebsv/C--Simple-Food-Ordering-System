@@ -32,6 +32,25 @@ internal sealed class MySqlMenuStore(MySqlDataSource dataSource)
         return await rows.ReadAsync(cancellationToken) ? ReadItem(rows) : null;
     }
 
+    public async Task CreateAsync(MenuItem item, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO menu_items (id, name, description, price, category, image, available, stock, last_updated)
+            VALUES (@id, @name, @description, @price, @category, @image, @available, @stock, UTC_TIMESTAMP(6));
+            """;
+        command.Parameters.AddWithValue("@id", item.Id);
+        command.Parameters.AddWithValue("@name", item.Name);
+        command.Parameters.AddWithValue("@description", item.Description);
+        command.Parameters.AddWithValue("@price", item.Price);
+        command.Parameters.AddWithValue("@category", item.Category);
+        command.Parameters.AddWithValue("@image", item.Image);
+        command.Parameters.AddWithValue("@available", item.Available);
+        command.Parameters.AddWithValue("@stock", item.Stock);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static MenuItem ReadItem(MySqlDataReader row) => new()
     {
         Id = row.GetString(0),
