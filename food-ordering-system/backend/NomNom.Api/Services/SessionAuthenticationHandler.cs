@@ -13,6 +13,7 @@ internal sealed class SessionAuthenticationHandler(
     ISessionService sessions) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "Bearer";
+    public const string SessionTokenName = "access_token";
 
     protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
     {
@@ -33,7 +34,9 @@ internal sealed class SessionAuthenticationHandler(
             new Claim(ClaimTypes.NameIdentifier, account.UserId),
             new Claim(ClaimTypes.Role, account.IsAdmin ? "admin" : "user")
         ], Scheme.Name);
-        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name));
+        var properties = new AuthenticationProperties();
+        properties.StoreTokens([new AuthenticationToken { Name = SessionTokenName, Value = header.Parameter }]);
+        return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(identity), properties, Scheme.Name));
     }
 
     protected override Task HandleChallengeAsync(AuthenticationProperties properties)
