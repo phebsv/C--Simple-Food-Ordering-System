@@ -7,11 +7,11 @@ using NomNom.Api.Storage;
 
 namespace NomNom.Api.Services;
 
-internal sealed class AccountService(INomNomStore store, ISessionService sessions) : IAccountService
+internal sealed class AccountService(MySqlAccountStore store, ISessionService sessions) : IAccountService
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
-        var email = request.Email?.Trim().ToLowerInvariant() ?? "";
+        var email = NormalizeEmail(request.Email);
         var name = request.Name?.Trim() ?? "";
         var phone = request.Phone?.Trim() ?? "";
         var streetAddress = request.Address?.Trim() ?? "";
@@ -38,13 +38,8 @@ internal sealed class AccountService(INomNomStore store, ISessionService session
             Role = "user",
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(password, 10)
         };
-        await store.UpdateAsync(data =>
-        {
-            if (data.Users.Any(existing => SameEmail(existing.Email, email)))
-                throw ApiError.Invalid("Email already registered.");
-            data.Users.Add(user);
-            return true;
-        }, cancellationToken);
+        if (!await store.TryCreateAsync(user, cancellationToken))
+            throw ApiError.Invalid("Email already registered.");
         return await AuthenticateAsync(user, "Account created successfully.", cancellationToken);
     }
 
@@ -52,8 +47,7 @@ internal sealed class AccountService(INomNomStore store, ISessionService session
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrEmpty(request.Password))
             throw ApiError.Invalid("Email and password are required.");
-        var data = await store.ReadAsync(cancellationToken);
-        var user = data.Users.Find(user => SameEmail(user.Email, request.Email));
+        var user = await store.FindByEmailAsync(NormalizeEmail(request.Email), cancellationToken);
         if (user is null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             throw ApiError.Unauthorized("Invalid email or password.");
         return await AuthenticateAsync(user, "Login successful.", cancellationToken);
@@ -68,6 +62,5 @@ internal sealed class AccountService(INomNomStore store, ISessionService session
         return new AuthResponse(message, new AuthData(token, publicUser));
     }
 
-    private static bool SameEmail(string left, string right) =>
-        string.Equals(left.Trim(), right.Trim(), StringComparison.OrdinalIgnoreCase);
+    private static string NormalizeEmail(string? email) => email?.Trim().ToLowerInvariant() ?? "";
 }

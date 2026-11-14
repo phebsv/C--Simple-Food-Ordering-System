@@ -1,12 +1,16 @@
-using System.Text.Json;
+using MySqlConnector;
 using NomNom.Api;
 using NomNom.Api.Services;
 using NomNom.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
-var databasePath = builder.Configuration["NomNom:DatabasePath"] ?? "data/db.json";
-builder.Services.AddSingleton<INomNomStore>(new JsonNomNomStore(
-    Path.GetFullPath(databasePath, builder.Environment.ContentRootPath)));
+var connectionString = builder.Configuration.GetConnectionString("NomNom");
+if (string.IsNullOrWhiteSpace(connectionString))
+    throw new InvalidOperationException("Set the ConnectionStrings:NomNom setting before starting the API.");
+
+builder.Services.AddMySqlDataSource(connectionString);
+builder.Services.AddSingleton<MySqlAccountStore>();
+builder.Services.AddSingleton<MySqlMenuStore>();
 builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddSingleton<IAccountService, AccountService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();
@@ -32,9 +36,9 @@ app.Use(async (context, next) =>
     {
         await Results.Json(new { message = "Invalid request." }, statusCode: error.StatusCode).ExecuteAsync(context);
     }
-    catch (Exception error) when (!context.Response.HasStarted && error is IOException or JsonException or UnauthorizedAccessException)
+    catch (MySqlException error) when (!context.Response.HasStarted)
     {
-        app.Logger.LogError(error, "JSON storage operation failed.");
+        app.Logger.LogError(error, "MySQL storage operation failed.");
         await Results.Json(new { message = "Data storage is temporarily unavailable." }, statusCode: 503)
             .ExecuteAsync(context);
     }
