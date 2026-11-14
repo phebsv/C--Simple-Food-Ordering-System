@@ -31,5 +31,8 @@ internal static class NomNomRoutes
             Results.Ok(await service.ListAsync(category, search, ct)));
         app.MapGet("/menu/{id}", async (string id, IMenuService service, CancellationToken ct) =>
             Results.Ok(await service.GetAsync(id, ct)));
+        app.MapPost("/menu", async (CreateMenuItemRequest request, IMenuService service, CancellationToken ct) =>
+            Results.Json(await service.CreateAsync(request, ct), statusCode: 201))
+            .RequireAuthorization(AccessPolicies.Administrator);
     }
 }
