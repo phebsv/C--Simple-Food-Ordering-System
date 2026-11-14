@@ -33,6 +33,15 @@
       "passwordHash": "$2a$10$AiazuDxcufSJLwECLRqZ3.INM4UmzQ.j0mK87rcVE5fGrQb/FcD5a",
       "phone": "09611339829",
       "address": ""
+    },
+    {
+      "id": "adc57af59e514664afa6a0bb6dedd423",
+      "email": "jason1@gmail.com",
+      "name": "Jason Conopio",
+      "role": "user",
+      "passwordHash": "$2a$10$gJ4Ih2xHouExOHATZO2ar.N9JrCK6qpN4Qfe.JNEYsaXfFV5pLpiC",
+      "phone": "09735813659",
+      "address": ""
     }
   ],
   "menu": [
