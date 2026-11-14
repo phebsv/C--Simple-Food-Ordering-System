@@ -1,6 +1,7 @@
 using System.Globalization;
 using MySqlConnector;
 using NomNom.Api.Models;
+using NomNom.Api.Contracts;
 
 namespace NomNom.Api.Storage;
 
@@ -48,6 +49,33 @@ internal sealed class MySqlMenuStore(MySqlDataSource dataSource)
         command.Parameters.AddWithValue("@image", item.Image);
         command.Parameters.AddWithValue("@available", item.Available);
         command.Parameters.AddWithValue("@stock", item.Stock);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task UpdateAsync(string id, UpdateMenuItemRequest changes, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE menu_items SET
+                name = COALESCE(@name, name),
+                description = COALESCE(@description, description),
+                price = COALESCE(@price, price),
+                category = COALESCE(@category, category),
+                image = COALESCE(@image, image),
+                stock = COALESCE(@stock, stock),
+                available = COALESCE(@available, available),
+                last_updated = UTC_TIMESTAMP(6)
+            WHERE id = @id;
+            """;
+        command.Parameters.AddWithValue("@id", id);
+        command.Parameters.AddWithValue("@name", changes.Name);
+        command.Parameters.AddWithValue("@description", changes.Description);
+        command.Parameters.AddWithValue("@price", changes.Price);
+        command.Parameters.AddWithValue("@category", changes.Category);
+        command.Parameters.AddWithValue("@image", changes.Image);
+        command.Parameters.AddWithValue("@stock", changes.Stock);
+        command.Parameters.AddWithValue("@available", changes.Available);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 

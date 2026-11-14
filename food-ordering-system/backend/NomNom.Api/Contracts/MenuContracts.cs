@@ -8,3 +8,12 @@ internal sealed record CreateMenuItemRequest(
     string? Image,
     int? Stock,
     bool? Available);
+
+internal sealed record UpdateMenuItemRequest(
+    string? Name,
+    string? Description,
+    decimal? Price,
+    string? Category,
+    string? Image,
+    int? Stock,
+    bool? Available);
