@@ -3,7 +3,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { getErrorMessage, loginCustomer, registerCustomer } from "../services/api";
+import { getErrorMessage, loginCustomer, logoutSession, registerCustomer } from "../services/api";
 import { TOKEN_KEY, USER_KEY } from "../constants/storageKeys";
 import type { AuthUser } from "../types";
 import { getStoredItem, removeStoredItem, setStoredItem } from "../utils/storage";
@@ -110,11 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    // The API client gets the current session token before browser storage is cleared.
+    if (token) void logoutSession(token).catch(() => {});
     removeStoredItem(TOKEN_KEY);
     removeStoredItem(USER_KEY);
     setToken(null);
     setCustomer(null);
-  }, []);
+  }, [token]);
 
   const value = useMemo(
     () => ({

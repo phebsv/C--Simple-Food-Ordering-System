@@ -1,0 +1,48 @@
+using System.Globalization;
+using MySqlConnector;
+using NomNom.Api.Models;
+
+namespace NomNom.Api.Storage;
+
+internal sealed class MySqlMenuStore(MySqlDataSource dataSource)
+{
+    private const string SelectItems = """
+        SELECT id, name, description, price, category, image, available, stock, last_updated
+        FROM menu_items
+        """;
+
+    public async Task<List<MenuItem>> ListAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = SelectItems + "\nORDER BY display_order;";
+        await using var rows = await command.ExecuteReaderAsync(cancellationToken);
+        var items = new List<MenuItem>();
+        while (await rows.ReadAsync(cancellationToken)) items.Add(ReadItem(rows));
+        return items;
+    }
+
+    public async Task<MenuItem?> FindAsync(string id, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = SelectItems + "\nWHERE id = @id;";
+        command.Parameters.AddWithValue("@id", id);
+        await using var rows = await command.ExecuteReaderAsync(cancellationToken);
+        return await rows.ReadAsync(cancellationToken) ? ReadItem(rows) : null;
+    }
+
+    private static MenuItem ReadItem(MySqlDataReader row) => new()
+    {
+        Id = row.GetString(0),
+        Name = row.GetString(1),
+        Description = row.GetString(2),
+        Price = row.GetDecimal(3),
+        Category = row.GetString(4),
+        Image = row.IsDBNull(5) ? null : row.GetString(5),
+        Available = row.IsDBNull(6) ? null : row.GetBoolean(6),
+        Stock = row.IsDBNull(7) ? null : row.GetInt32(7),
+        LastUpdated = row.IsDBNull(8) ? null :
+            DateTime.SpecifyKind(row.GetDateTime(8), DateTimeKind.Utc).ToString("O", CultureInfo.InvariantCulture)
+    };
+}
