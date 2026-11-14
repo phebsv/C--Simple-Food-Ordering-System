@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authentication;
 using MySqlConnector;
 using NomNom.Api;
 using NomNom.Api.Services;
@@ -11,7 +12,12 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddMySqlDataSource(connectionString);
 builder.Services.AddSingleton<MySqlAccountStore>();
 builder.Services.AddSingleton<MySqlMenuStore>();
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ISessionService, SessionService>();
+builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(
+        SessionAuthenticationHandler.SchemeName, _ => { });
+builder.Services.AddAuthorization(AccessPolicies.Configure);
 builder.Services.AddSingleton<IAccountService, AccountService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();
 var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<string[]>()
@@ -43,6 +49,9 @@ app.Use(async (context, next) =>
             .ExecuteAsync(context);
     }
 });
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapGet("/", () => "Hello World!");
 app.MapNomNomRoutes();

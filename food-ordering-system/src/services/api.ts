@@ -21,7 +21,7 @@ const API = axios.create({
 
 API.interceptors.request.use((config) => {
   const token = getStoredItem(TOKEN_KEY);
-  if (token) config.headers.Authorization = `Bearer ${token}`;
+  if (token && !config.headers.has("Authorization")) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -41,6 +41,12 @@ type AuthPayload = { token: string; user: AuthUser };
 export async function loginCustomer(email: string, password: string) {
   const res = await API.post<{ data: AuthPayload }>("/auth/login", { email, password });
   return { data: { token: res.data.data.token, customer: res.data.data.user } };
+}
+
+export async function logoutSession(token: string) {
+  await API.post("/auth/logout", undefined, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
 }
 
 export async function registerCustomer(data: {

@@ -3,7 +3,7 @@ using System.Security.Cryptography;
 
 namespace NomNom.Api.Services;
 
-internal sealed class SessionService : ISessionService
+internal sealed class SessionService(TimeProvider clock) : ISessionService
 {
     private readonly ConcurrentDictionary<string, Session> sessions = new();
     private sealed record Session(AccountIdentity Account, DateTimeOffset ExpiresAt);
@@ -11,7 +11,7 @@ internal sealed class SessionService : ISessionService
     public Task<string> IssueAsync(AccountIdentity account, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var now = DateTimeOffset.UtcNow;
+        var now = clock.GetUtcNow();
         foreach (var (key, session) in sessions)
         {
             if (session.ExpiresAt <= now) sessions.TryRemove(key, out _);
@@ -26,7 +26,7 @@ internal sealed class SessionService : ISessionService
     {
         cancellationToken.ThrowIfCancellationRequested();
         if (!sessions.TryGetValue(token, out var session)) return Task.FromResult<AccountIdentity?>(null);
-        if (session.ExpiresAt > DateTimeOffset.UtcNow) return Task.FromResult<AccountIdentity?>(session.Account);
+        if (session.ExpiresAt > clock.GetUtcNow()) return Task.FromResult<AccountIdentity?>(session.Account);
         sessions.TryRemove(token, out _);
         return Task.FromResult<AccountIdentity?>(null);
     }

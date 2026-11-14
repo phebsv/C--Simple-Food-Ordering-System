@@ -5,6 +5,7 @@ import { AuthProvider, useAuth } from "../context/AuthContext";
 // Mock the API
 vi.mock("../services/api", () => ({
   loginCustomer: vi.fn(),
+  logoutSession: vi.fn(),
   registerCustomer: vi.fn(),
   getErrorMessage: (err: unknown, fallback: string) =>
     err instanceof Error ? err.message : fallback,
@@ -16,7 +17,7 @@ vi.mock("../utils/storage", () => ({
   removeStoredItem: vi.fn(),
 }));
 
-import { loginCustomer, registerCustomer } from "../services/api";
+import { loginCustomer, logoutSession, registerCustomer } from "../services/api";
 import { getStoredItem, setStoredItem, removeStoredItem } from "../utils/storage";
 
 const mockLogin = vi.mocked(loginCustomer);
@@ -147,6 +148,10 @@ describe("AuthContext", () => {
   });
 
   it("handles logout", () => {
+    vi.mocked(getStoredItem).mockImplementation((key) =>
+      key === "customerToken" ? "active-token" : JSON.stringify({ id: "1" }),
+    );
+    vi.mocked(logoutSession).mockResolvedValue(undefined);
     const { result } = renderHook(() => useAuth(), {
       wrapper: AuthProvider,
     });
@@ -158,6 +163,7 @@ describe("AuthContext", () => {
     expect(result.current.customer).toBeNull();
     expect(result.current.token).toBeNull();
     expect(result.current.isAuthenticated).toBe(false);
+    expect(logoutSession).toHaveBeenCalledWith("active-token");
     expect(removeStoredItem).toHaveBeenCalledWith("customerToken");
     expect(removeStoredItem).toHaveBeenCalledWith("currentUser");
   });
