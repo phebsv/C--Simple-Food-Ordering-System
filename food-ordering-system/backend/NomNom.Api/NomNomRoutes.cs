@@ -11,6 +11,11 @@ internal static class NomNomRoutes
             Results.Json(await service.RegisterAsync(request, ct), statusCode: 201));
         app.MapPost("/auth/login", (LoginRequest request, IAccountService service, CancellationToken ct) =>
             service.LoginAsync(request, ct));
+        app.MapGet("/auth/session", (HttpContext context) =>
+        {
+            context.Response.Headers.CacheControl = "no-store";
+            return Results.NoContent();
+        }).RequireAuthorization();
         app.MapGet("/menu", async (string? category, string? search, IMenuService service, CancellationToken ct) =>
             Results.Ok(await service.ListAsync(category, search, ct)));
         app.MapGet("/menu/{id}", async (string id, IMenuService service, CancellationToken ct) =>
