@@ -8,4 +8,5 @@ internal interface IMenuService
     Task<IReadOnlyList<MenuItem>> ListAsync(string? category, string? search, CancellationToken cancellationToken);
     Task<MenuItem> GetAsync(string id, CancellationToken cancellationToken);
     Task<MenuItem> CreateAsync(CreateMenuItemRequest request, CancellationToken cancellationToken);
+    Task<MenuItem> UpdateAsync(string id, UpdateMenuItemRequest request, CancellationToken cancellationToken);
 }
