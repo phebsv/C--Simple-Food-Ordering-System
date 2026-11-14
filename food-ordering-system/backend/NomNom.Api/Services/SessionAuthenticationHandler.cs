@@ -43,4 +43,11 @@ internal sealed class SessionAuthenticationHandler(
         return Results.Json(new { message = "Invalid or expired session. Please log in." },
             statusCode: StatusCodes.Status401Unauthorized).ExecuteAsync(Context);
     }
+
+    protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return Results.Json(new { message = "Forbidden." },
+            statusCode: StatusCodes.Status403Forbidden).ExecuteAsync(Context);
+    }
 }

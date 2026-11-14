@@ -17,7 +17,7 @@ builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(
         SessionAuthenticationHandler.SchemeName, _ => { });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(AccessPolicies.Configure);
 builder.Services.AddSingleton<IAccountService, AccountService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();
 var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<string[]>()
