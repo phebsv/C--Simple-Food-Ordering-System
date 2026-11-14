@@ -3,13 +3,12 @@ using NomNom.Api.Storage;
 
 namespace NomNom.Api.Services;
 
-internal sealed class MenuService(INomNomStore store) : IMenuService
+internal sealed class MenuService(MySqlMenuStore store) : IMenuService
 {
     public async Task<IReadOnlyList<MenuItem>> ListAsync(
         string? category, string? search, CancellationToken cancellationToken)
     {
-        var data = await store.ReadAsync(cancellationToken);
-        IEnumerable<MenuItem> items = data.Menu;
+        IEnumerable<MenuItem> items = await store.ListAsync(cancellationToken);
 
         if (!string.IsNullOrWhiteSpace(category))
         {
@@ -30,8 +29,7 @@ internal sealed class MenuService(INomNomStore store) : IMenuService
     }
     public async Task<MenuItem> GetAsync(string id, CancellationToken cancellationToken)
     {
-        var data = await store.ReadAsync(cancellationToken);
-        return data.Menu.Find(item => item.Id == id)
+        return await store.FindAsync(id, cancellationToken)
             ?? throw ApiError.NotFound("Menu item not found.");
     }
 }
