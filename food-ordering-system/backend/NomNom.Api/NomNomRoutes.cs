@@ -37,5 +37,10 @@ internal static class NomNomRoutes
         app.MapPatch("/menu/{id}", async (string id, UpdateMenuItemRequest request, IMenuService service, CancellationToken ct) =>
             Results.Ok(await service.UpdateAsync(id, request, ct)))
             .RequireAuthorization(AccessPolicies.Administrator);
+        app.MapDelete("/menu/{id}", async (string id, IMenuService service, CancellationToken ct) =>
+        {
+            await service.DeleteAsync(id, ct);
+            return Results.NoContent();
+        }).RequireAuthorization(AccessPolicies.Administrator);
     }
 }

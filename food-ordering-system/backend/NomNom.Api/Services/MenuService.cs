@@ -91,6 +91,12 @@ internal sealed class MenuService(MySqlMenuStore store) : IMenuService
             ?? throw ApiError.NotFound("Menu item not found.");
     }
 
+    public async Task DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await store.DeleteAsync(id, cancellationToken))
+            throw ApiError.NotFound("Menu item not found.");
+    }
+
     private static string CleanName(string? value)
     {
         var name = value?.Trim() ?? "";
