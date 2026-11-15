@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using NomNom.Api.Contracts;
 using NomNom.Api.Services;
+using System.Security.Claims;
 
 namespace NomNom.Api;
 
@@ -42,5 +43,16 @@ internal static class NomNomRoutes
             await service.DeleteAsync(id, ct);
             return Results.NoContent();
         }).RequireAuthorization(AccessPolicies.Administrator);
+        app.MapGet("/cart_items", async (ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+            Results.Ok(await service.ListAsync(Actor(user), ct)))
+            .RequireAuthorization();
+        app.MapPost("/cart_items", async (AddCartItemRequest request, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+            Results.Ok(await service.AddAsync(Actor(user), request, ct)))
+            .RequireAuthorization();
+        app.MapPatch("/cart_items/{id}", async (string id, UpdateCartItemRequest request, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+            Results.Ok(await service.SetQuantityAsync(Actor(user), id, request, ct)))
+            .RequireAuthorization();
     }
+    private static AccountIdentity Actor(ClaimsPrincipal user) =>
+        new(user.FindFirstValue(ClaimTypes.NameIdentifier)!, user.IsInRole("admin"));
 }

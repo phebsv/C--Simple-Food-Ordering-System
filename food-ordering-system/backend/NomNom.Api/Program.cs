@@ -12,6 +12,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 builder.Services.AddMySqlDataSource(connectionString);
 builder.Services.AddSingleton<MySqlAccountStore>();
 builder.Services.AddSingleton<MySqlMenuStore>();
+builder.Services.AddSingleton<MySqlCartStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
@@ -20,6 +21,7 @@ builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
 builder.Services.AddAuthorization(AccessPolicies.Configure);
 builder.Services.AddSingleton<IAccountService, AccountService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();
+builder.Services.AddSingleton<ICartService, CartService>();
 var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<string[]>()
     ?? (builder.Environment.IsDevelopment() ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
