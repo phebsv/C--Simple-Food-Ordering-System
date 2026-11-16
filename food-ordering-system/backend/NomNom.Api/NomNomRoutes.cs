@@ -52,6 +52,16 @@ internal static class NomNomRoutes
         app.MapPatch("/cart_items/{id}", async (string id, UpdateCartItemRequest request, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
             Results.Ok(await service.SetQuantityAsync(Actor(user), id, request, ct)))
             .RequireAuthorization();
+        app.MapDelete("/cart_items/{id}", async (string id, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+        {
+            await service.RemoveAsync(Actor(user), id, ct);
+            return Results.NoContent();
+        }).RequireAuthorization();
+        app.MapDelete("/cart_items", async (ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+        {
+            await service.ClearAsync(Actor(user), ct);
+            return Results.NoContent();
+        }).RequireAuthorization();
     }
     private static AccountIdentity Actor(ClaimsPrincipal user) =>
         new(user.FindFirstValue(ClaimTypes.NameIdentifier)!, user.IsInRole("admin"));

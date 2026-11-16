@@ -77,6 +77,15 @@ internal sealed class CartService(MySqlCartStore store, MySqlMenuStore menu) : I
         return ToLine(line with { Quantity = quantity });
     }
 
+    public async Task RemoveAsync(AccountIdentity actor, string id, CancellationToken cancellationToken)
+    {
+        if (!await store.DeleteAsync(actor.UserId, id, cancellationToken))
+            throw ApiError.NotFound("Cart item not found.");
+    }
+
+    public Task ClearAsync(AccountIdentity actor, CancellationToken cancellationToken) =>
+        store.ClearAsync(actor.UserId, cancellationToken);
+
     private static CartLine ToLine(CartItem item) => new(
         item.Id, item.MenuId, item.Name, item.Description,
         item.Price, item.Category, item.Image, item.Quantity);

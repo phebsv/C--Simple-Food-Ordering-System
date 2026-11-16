@@ -83,6 +83,25 @@ internal sealed class MySqlCartStore(MySqlDataSource dataSource)
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<bool> DeleteAsync(string customerId, string id, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM cart_items WHERE id = @id AND customer_id = @customerId;";
+        command.Parameters.AddWithValue("@id", id);
+        command.Parameters.AddWithValue("@customerId", customerId);
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    public async Task ClearAsync(string customerId, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM cart_items WHERE customer_id = @customerId;";
+        command.Parameters.AddWithValue("@customerId", customerId);
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
     private static CartItem ReadItem(MySqlDataReader row) => new()
     {
         Id = row.GetString(0),
