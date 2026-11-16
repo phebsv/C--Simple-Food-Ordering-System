@@ -86,7 +86,15 @@ internal sealed class MySqlCartStore(MySqlDataSource dataSource)
     public async Task<bool> DeleteAsync(string customerId, string id, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        return await DeleteAsync(connection, null, customerId, id, cancellationToken);
+    }
+
+    internal static async Task<bool> DeleteAsync(
+        MySqlConnection connection, MySqlTransaction? transaction, string customerId, string id,
+        CancellationToken cancellationToken)
+    {
         await using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "DELETE FROM cart_items WHERE id = @id AND customer_id = @customerId;";
         command.Parameters.AddWithValue("@id", id);
         command.Parameters.AddWithValue("@customerId", customerId);

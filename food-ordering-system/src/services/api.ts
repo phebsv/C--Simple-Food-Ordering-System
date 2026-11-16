@@ -102,10 +102,10 @@ export async function deleteMenuItem(id: string) {
 
 export type NewOrder = Pick<
   Order,
-  "customerName" | "customerEmail" | "customerPhone" | "customerAddress" | "paymentMethod" | "deliveryNotes"
+  "customerName" | "customerPhone" | "customerAddress" | "paymentMethod" | "deliveryNotes"
 > & { items: Pick<OrderItem, "id" | "quantity">[] };
 
-/** Customers get their own orders; admins get every order. */
+/** Retrieve the signed-in customer’s orders. */
 export async function getOrders() {
   return (await API.get<Order[]>("/orders")).data;
 }
@@ -168,8 +168,4 @@ export async function setCartQuantity(cartItemId: string, quantity: number) {
 
 export async function removeFromCart(cartItemId: string) {
   await API.delete(`/cart_items/${cartItemId}`);
-}
-
-export async function clearCart() {
-  await API.delete("/cart_items");
 }

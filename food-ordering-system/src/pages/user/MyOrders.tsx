@@ -2,13 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
-import { addReview, getErrorMessage, getOrders, getReviews, updateOrderStatus } from "../../services/api";
+import { addReview, getErrorMessage, getOrders, getReviews } from "../../services/api";
 import type { Order, OrderItem, Review } from "../../types";
 import { findItemReview, sortNewestFirst } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
 import "./MyOrders.css";
 
-const ORDER_STATUSES = ["All", "Pending", "Preparing", "Ready", "Delivered"];
+const ORDER_STATUSES = ["All", "Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
 const REFRESH_INTERVAL_MS = 5000;
 const MAX_REVIEW_LENGTH = 180;
 
@@ -43,7 +43,8 @@ export default function MyOrders() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>("");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
+  const selectedOrder = orders.find((order) => order.id === selectedOrderId);
   const [selectedOrderMode, setSelectedOrderMode] = useState<OrderModalMode>("details");
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
@@ -63,7 +64,7 @@ export default function MyOrders() {
     const loadOrders = async () => {
       try {
         // The server only returns this customer's own orders.
-        const data = (await getOrders()).filter((order) => order.status !== "Cancelled");
+        const data = await getOrders();
         if (cancelled) return;
 
         const previous = previousStatusRef.current;
@@ -111,16 +112,12 @@ export default function MyOrders() {
   }, [orders, searchQuery, selectedStatus]);
 
   const openOrderModal = (order: Order, mode: OrderModalMode) => {
-    setSelectedOrder(order);
+    setSelectedOrderId(order.id);
     setSelectedOrderMode(mode);
   };
 
   const handleReviewSaved = (review: Review) => {
     setReviews((prev) => [...prev, review]);
-  };
-
-  const handleOrderCancelled = (orderId: string) => {
-    setOrders((prev) => prev.filter((order) => order.id !== orderId));
   };
 
   const statusBadgeColor = (status: string) => STATUS_COLORS[status] ?? "#999";
@@ -311,8 +308,7 @@ export default function MyOrders() {
           mode={selectedOrderMode}
           reviews={reviews}
           onReviewSaved={handleReviewSaved}
-          onOrderCancelled={handleOrderCancelled}
-          onClose={() => setSelectedOrder(null)}
+          onClose={() => setSelectedOrderId(null)}
         />
       )}
     </>
@@ -324,19 +320,14 @@ function OrderDetailsModal({
   mode,
   reviews,
   onReviewSaved,
-  onOrderCancelled,
   onClose,
 }: {
   order: Order;
   mode: OrderModalMode;
   reviews: Review[];
   onReviewSaved: (review: Review) => void;
-  onOrderCancelled: (orderId: string) => void;
   onClose: () => void;
 }) {
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
-  const [cancelError, setCancelError] = useState("");
   const [reviewingItem, setReviewingItem] = useState<OrderItem | null>(null);
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
@@ -425,22 +416,6 @@ function OrderDetailsModal({
       setReviewError(getErrorMessage(err, "Failed to save review."));
     } finally {
       setReviewLoading(false);
-    }
-  };
-
-  const handleCancelOrder = async () => {
-    if (!["Pending", "Preparing"].includes(order.status)) return;
-
-    setCancelLoading(true);
-    setCancelError("");
-    try {
-      await updateOrderStatus(order.id, "Cancelled");
-      onOrderCancelled(order.id);
-      onClose();
-    } catch (err) {
-      setCancelError(getErrorMessage(err, "Failed to cancel order."));
-    } finally {
-      setCancelLoading(false);
     }
   };
 
@@ -638,42 +613,6 @@ function OrderDetailsModal({
                 </div>
               )}
 
-              {["Pending", "Preparing"].includes(order.status) && (
-                <div className="modal-actions">
-                  {!showCancelConfirm ? (
-                    <button
-                      onClick={() => setShowCancelConfirm(true)}
-                      className="cancel-btn"
-                    >
-                      Cancel Order
-                    </button>
-                  ) : (
-                    <div className="cancel-confirm">
-                      <p>Are you sure you want to cancel this order?</p>
-                      {cancelError && (
-                        <p style={{ color: "#d32f2f", marginTop: 8 }}>
-                          {cancelError}
-                        </p>
-                      )}
-                      <div className="confirm-buttons">
-                        <button
-                          onClick={() => setShowCancelConfirm(false)}
-                          disabled={cancelLoading}
-                        >
-                          Back
-                        </button>
-                        <button
-                          onClick={handleCancelOrder}
-                          disabled={cancelLoading}
-                          className="confirm-cancel-btn"
-                        >
-                          {cancelLoading ? "Cancelling..." : "Confirm Cancel"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
             </>
           )}
         </div>

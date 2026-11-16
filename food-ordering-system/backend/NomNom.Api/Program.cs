@@ -13,13 +13,18 @@ builder.Services.AddMySqlDataSource(connectionString);
 builder.Services.AddSingleton<MySqlAccountStore>();
 builder.Services.AddSingleton<MySqlMenuStore>();
 builder.Services.AddSingleton<MySqlCartStore>();
+builder.Services.AddSingleton<MySqlOrderStore>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
     .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(
         SessionAuthenticationHandler.SchemeName, _ => { });
 builder.Services.AddAuthorization(AccessPolicies.Configure);
-builder.Services.AddSingleton<IAccountService, AccountService>();
+builder.Services.AddSingleton<AccountService>();
+builder.Services.AddSingleton<IAccountService>(services => services.GetRequiredService<AccountService>());
+builder.Services.AddSingleton<IProfileService>(services => services.GetRequiredService<AccountService>());
+builder.Services.AddSingleton<ICheckoutService, CheckoutService>();
+builder.Services.AddSingleton<ICustomerOrderService, CustomerOrderService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();
 builder.Services.AddSingleton<ICartService, CartService>();
 var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<string[]>()

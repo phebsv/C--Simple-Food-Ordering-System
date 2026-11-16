@@ -62,6 +62,34 @@ internal static class NomNomRoutes
             await service.ClearAsync(Actor(user), ct);
             return Results.NoContent();
         }).RequireAuthorization();
+
+        var profiles = app.MapGroup("/users/{id}").RequireAuthorization();
+        profiles.MapGet("", async (string id, ClaimsPrincipal user, IProfileService service, CancellationToken ct) =>
+            Results.Ok(await service.GetAsync(Actor(user), id, ct)));
+        profiles.MapPatch("", async (string id, UpdateProfileRequest request, ClaimsPrincipal user,
+            IProfileService service, CancellationToken ct) =>
+            Results.Ok(await service.UpdateAsync(Actor(user), id, request, ct)));
+        profiles.MapPost("/password", async (string id, ChangePasswordRequest request, ClaimsPrincipal user,
+            IProfileService service, CancellationToken ct) =>
+        {
+            await service.ChangePasswordAsync(Actor(user), id, request, ct);
+            return Results.NoContent();
+        });
+
+        var orders = app.MapGroup("/orders").RequireAuthorization();
+        orders.MapPost("", async (CheckoutRequest request, ClaimsPrincipal user, ICheckoutService service,
+            CancellationToken ct) =>
+        {
+            var order = await service.PlaceOrderAsync(Actor(user), request, ct);
+            return Results.Created($"/orders/{order.Id}", order);
+        });
+        orders.MapGet("", async (ClaimsPrincipal user, ICustomerOrderService service, CancellationToken ct) =>
+            Results.Ok(await service.ListAsync(Actor(user), ct)));
+        orders.MapGet("/{id}", async (string id, ClaimsPrincipal user, ICustomerOrderService service,
+            CancellationToken ct) =>
+            await service.FindAsync(Actor(user), id, ct) is { } order
+                ? Results.Ok(order)
+                : throw ApiError.NotFound("Order not found."));
     }
     private static AccountIdentity Actor(ClaimsPrincipal user) =>
         new(user.FindFirstValue(ClaimTypes.NameIdentifier)!, user.IsInRole("admin"));

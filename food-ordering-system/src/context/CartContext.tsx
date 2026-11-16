@@ -11,7 +11,7 @@ type CartContextType = {
   addItem: (item: FoodItem) => void;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
-  clearCart: () => void;
+  reloadCart: () => Promise<void>;
 };
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -111,11 +111,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
     [findLine, removeItem, setItems, reload],
   );
 
-  const clearCart = useCallback(() => {
-    setItems(() => []);
-    api.clearCart().catch(reload);
-  }, [setItems, reload]);
-
   const value = useMemo(
     () => ({
       items,
@@ -125,9 +120,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addItem,
       removeItem,
       updateQuantity,
-      clearCart,
+      reloadCart: reload,
     }),
-    [items, loading, addItem, removeItem, updateQuantity, clearCart],
+    [items, loading, addItem, removeItem, updateQuantity, reload],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
