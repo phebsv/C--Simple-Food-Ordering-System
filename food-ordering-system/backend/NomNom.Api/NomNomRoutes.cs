@@ -100,7 +100,11 @@ internal static class NomNomRoutes
                 ? Results.Ok(order)
                 : throw ApiError.NotFound("Order not found.");
         });
-    }
+        orders.MapPatch("/{id}", async (string id, UpdateOrderStatusRequest request,
+            IAdminOrderService service, CancellationToken ct) =>
+            Results.Ok(await service.UpdateStatusAsync(id, request, ct)))
+            .RequireAuthorization(AccessPolicies.Administrator);
+        }
     private static AccountIdentity Actor(ClaimsPrincipal user) =>
         new(user.FindFirstValue(ClaimTypes.NameIdentifier)!, user.IsInRole("admin"));
 }

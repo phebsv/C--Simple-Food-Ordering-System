@@ -134,6 +134,37 @@ internal sealed class MySqlOrderStore(MySqlDataSource dataSource, TimeProvider c
         return await command.ExecuteNonQueryAsync(ct) == 1;
     }
 
+    public async Task<bool> CancelAsync(string orderId, CancellationToken ct)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(ct);
+        await using var transaction = await connection.BeginTransactionAsync(ct);
+        var now = clock.GetUtcNow().UtcDateTime;
+
+        await using var cancel = Command(connection, transaction, """
+            UPDATE orders SET status = 'Cancelled', updated_at = @now
+            WHERE id = @id AND status IN ('Pending', 'Preparing');
+            """, ("@id", orderId), ("@now", now));
+        if (await cancel.ExecuteNonQueryAsync(ct) != 1) return false;
+
+        // Items this order sold out go back on sale; anything an admin hid by hand has stock left and stays as it was.
+        await using var reopen = Command(connection, transaction, """
+            UPDATE menu_items m JOIN order_items i ON i.menu_id = m.id
+            SET m.available = TRUE
+            WHERE i.order_id = @id AND m.stock = 0;
+            """, ("@id", orderId));
+        await reopen.ExecuteNonQueryAsync(ct);
+
+        await using var restock = Command(connection, transaction, """
+            UPDATE menu_items m JOIN order_items i ON i.menu_id = m.id
+            SET m.stock = m.stock + i.quantity, m.last_updated = @now
+            WHERE i.order_id = @id;
+            """, ("@id", orderId), ("@now", now));
+        await restock.ExecuteNonQueryAsync(ct);
+
+        await transaction.CommitAsync(ct);
+        return true;
+    }
+
     private async Task<IReadOnlyList<Order>> ReadAsync(string? customerId, string? orderId, CancellationToken ct)
     {
         await using var connection = await dataSource.OpenConnectionAsync(ct);
