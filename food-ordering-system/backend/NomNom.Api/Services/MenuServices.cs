@@ -9,4 +9,5 @@ internal interface IMenuService
     Task<MenuItem> GetAsync(string id, CancellationToken cancellationToken);
     Task<MenuItem> CreateAsync(CreateMenuItemRequest request, CancellationToken cancellationToken);
     Task<MenuItem> UpdateAsync(string id, UpdateMenuItemRequest request, CancellationToken cancellationToken);
+    Task DeleteAsync(string id, CancellationToken cancellationToken);
 }

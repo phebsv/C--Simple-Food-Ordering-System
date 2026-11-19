@@ -79,6 +79,32 @@ internal sealed class MySqlMenuStore(MySqlDataSource dataSource)
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
 
+    public async Task<bool> DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+
+        await using (var clearCarts = connection.CreateCommand())
+        {
+            clearCarts.Transaction = transaction;
+            clearCarts.CommandText = "DELETE FROM cart_items WHERE menu_id = @id;";
+            clearCarts.Parameters.AddWithValue("@id", id);
+            await clearCarts.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        int deleted;
+        await using (var deleteItem = connection.CreateCommand())
+        {
+            deleteItem.Transaction = transaction;
+            deleteItem.CommandText = "DELETE FROM menu_items WHERE id = @id;";
+            deleteItem.Parameters.AddWithValue("@id", id);
+            deleted = await deleteItem.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return deleted > 0;
+    }
+
     private static MenuItem ReadItem(MySqlDataReader row) => new()
     {
         Id = row.GetString(0),

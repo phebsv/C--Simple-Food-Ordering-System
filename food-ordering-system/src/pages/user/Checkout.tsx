@@ -10,7 +10,7 @@ import "./Checkout.css";
 
 export default function Checkout() {
   const { customer } = useAuth();
-  const { items, total, clearCart } = useCart();
+  const { items, total, reloadCart } = useCart();
   const navigate = useNavigate();
 
   // Pre-fill delivery details from the customer's profile.
@@ -47,17 +47,17 @@ export default function Checkout() {
       // The server looks up prices and stock itself; we only send ids and quantities.
       const order = await placeOrder({
         customerName: name.trim(),
-        customerEmail: customer?.email ?? "",
         customerPhone: phone.trim(),
         customerAddress: address.trim(),
         items: items.map(({ id, quantity }) => ({ id, quantity })),
         paymentMethod,
         deliveryNotes: notes.trim(),
       });
-      clearCart();
+      void reloadCart();
       navigate("/order-confirmation", { state: { order }, replace: true });
     } catch (err) {
       setError(getErrorMessage(err, "Failed to place order."));
+      void reloadCart();
     } finally {
       setLoading(false);
     }

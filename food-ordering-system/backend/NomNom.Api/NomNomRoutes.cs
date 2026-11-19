@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication;
 using NomNom.Api.Contracts;
 using NomNom.Api.Services;
+using System.Security.Claims;
 
 namespace NomNom.Api;
 
@@ -37,5 +38,73 @@ internal static class NomNomRoutes
         app.MapPatch("/menu/{id}", async (string id, UpdateMenuItemRequest request, IMenuService service, CancellationToken ct) =>
             Results.Ok(await service.UpdateAsync(id, request, ct)))
             .RequireAuthorization(AccessPolicies.Administrator);
-    }
+        app.MapDelete("/menu/{id}", async (string id, IMenuService service, CancellationToken ct) =>
+        {
+            await service.DeleteAsync(id, ct);
+            return Results.NoContent();
+        }).RequireAuthorization(AccessPolicies.Administrator);
+        app.MapGet("/cart_items", async (ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+            Results.Ok(await service.ListAsync(Actor(user), ct)))
+            .RequireAuthorization();
+        app.MapPost("/cart_items", async (AddCartItemRequest request, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+            Results.Ok(await service.AddAsync(Actor(user), request, ct)))
+            .RequireAuthorization();
+        app.MapPatch("/cart_items/{id}", async (string id, UpdateCartItemRequest request, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+            Results.Ok(await service.SetQuantityAsync(Actor(user), id, request, ct)))
+            .RequireAuthorization();
+        app.MapDelete("/cart_items/{id}", async (string id, ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+        {
+            await service.RemoveAsync(Actor(user), id, ct);
+            return Results.NoContent();
+        }).RequireAuthorization();
+        app.MapDelete("/cart_items", async (ClaimsPrincipal user, ICartService service, CancellationToken ct) =>
+        {
+            await service.ClearAsync(Actor(user), ct);
+            return Results.NoContent();
+        }).RequireAuthorization();
+
+        var profiles = app.MapGroup("/users/{id}").RequireAuthorization();
+        profiles.MapGet("", async (string id, ClaimsPrincipal user, IProfileService service, CancellationToken ct) =>
+            Results.Ok(await service.GetAsync(Actor(user), id, ct)));
+        profiles.MapPatch("", async (string id, UpdateProfileRequest request, ClaimsPrincipal user,
+            IProfileService service, CancellationToken ct) =>
+            Results.Ok(await service.UpdateAsync(Actor(user), id, request, ct)));
+        profiles.MapPost("/password", async (string id, ChangePasswordRequest request, ClaimsPrincipal user,
+            IProfileService service, CancellationToken ct) =>
+        {
+            await service.ChangePasswordAsync(Actor(user), id, request, ct);
+            return Results.NoContent();
+        });
+
+        var orders = app.MapGroup("/orders").RequireAuthorization();
+        orders.MapPost("", async (CheckoutRequest request, ClaimsPrincipal user, ICheckoutService service,
+            CancellationToken ct) =>
+        {
+            var order = await service.PlaceOrderAsync(Actor(user), request, ct);
+            return Results.Created($"/orders/{order.Id}", order);
+        });
+        orders.MapGet("", async (string? search, string? date, ClaimsPrincipal user,
+            ICustomerOrderService customerOrders, IAdminOrderService adminOrders, CancellationToken ct) =>
+        {
+            var actor = Actor(user);
+            return Results.Ok(actor.IsAdmin
+                ? await adminOrders.ListAsync(search, date, ct)
+                : await customerOrders.ListAsync(actor, ct));
+        });
+        orders.MapGet("/{id}", async Task<IResult> (string id, ClaimsPrincipal user,
+            ICustomerOrderService customerOrders, IAdminOrderService adminOrders, CancellationToken ct) =>
+        {
+            var actor = Actor(user);
+            if (actor.IsAdmin) return Results.Ok(await adminOrders.GetAsync(id, ct));
+            return await customerOrders.FindAsync(actor, id, ct) is { } order
+                ? Results.Ok(order)
+                : throw ApiError.NotFound("Order not found.");
+        });
+        orders.MapPatch("/{id}", async (string id, UpdateOrderStatusRequest request,
+            IAdminOrderService service, CancellationToken ct) =>
+            Results.Ok(await service.UpdateStatusAsync(id, request, ct)))
+            .RequireAuthorization(AccessPolicies.Administrator);
+        }
+    private static AccountIdentity Actor(ClaimsPrincipal user) =>
+        new(user.FindFirstValue(ClaimTypes.NameIdentifier)!, user.IsInRole("admin"));
 }
