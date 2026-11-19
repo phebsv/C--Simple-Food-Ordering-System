@@ -27,6 +27,7 @@ builder.Services.AddSingleton<ICheckoutService, CheckoutService>();
 builder.Services.AddSingleton<ICustomerOrderService, CustomerOrderService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();
 builder.Services.AddSingleton<ICartService, CartService>();
+builder.Services.AddSingleton<IAdminOrderService, AdminOrderService>();
 var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<string[]>()
     ?? (builder.Environment.IsDevelopment() ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>

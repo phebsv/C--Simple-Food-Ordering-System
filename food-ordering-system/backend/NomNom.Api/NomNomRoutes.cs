@@ -83,13 +83,23 @@ internal static class NomNomRoutes
             var order = await service.PlaceOrderAsync(Actor(user), request, ct);
             return Results.Created($"/orders/{order.Id}", order);
         });
-        orders.MapGet("", async (ClaimsPrincipal user, ICustomerOrderService service, CancellationToken ct) =>
-            Results.Ok(await service.ListAsync(Actor(user), ct)));
-        orders.MapGet("/{id}", async (string id, ClaimsPrincipal user, ICustomerOrderService service,
-            CancellationToken ct) =>
-            await service.FindAsync(Actor(user), id, ct) is { } order
+        orders.MapGet("", async (string? search, string? date, ClaimsPrincipal user,
+            ICustomerOrderService customerOrders, IAdminOrderService adminOrders, CancellationToken ct) =>
+        {
+            var actor = Actor(user);
+            return Results.Ok(actor.IsAdmin
+                ? await adminOrders.ListAsync(search, date, ct)
+                : await customerOrders.ListAsync(actor, ct));
+        });
+        orders.MapGet("/{id}", async Task<IResult> (string id, ClaimsPrincipal user,
+            ICustomerOrderService customerOrders, IAdminOrderService adminOrders, CancellationToken ct) =>
+        {
+            var actor = Actor(user);
+            if (actor.IsAdmin) return Results.Ok(await adminOrders.GetAsync(id, ct));
+            return await customerOrders.FindAsync(actor, id, ct) is { } order
                 ? Results.Ok(order)
-                : throw ApiError.NotFound("Order not found."));
+                : throw ApiError.NotFound("Order not found.");
+        });
     }
     private static AccountIdentity Actor(ClaimsPrincipal user) =>
         new(user.FindFirstValue(ClaimTypes.NameIdentifier)!, user.IsInRole("admin"));

@@ -117,6 +117,8 @@ internal sealed class MySqlOrderStore(MySqlDataSource dataSource, TimeProvider c
     public Task<IReadOnlyList<Order>> ListAsync(string customerId, CancellationToken ct) =>
         ReadAsync(customerId, orderId: null, ct);
 
+    public Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken ct) => ReadAsync(null, null, ct);
+
     public async Task<Order?> FindAsync(string orderId, string? customerId, CancellationToken ct) =>
         (await ReadAsync(customerId, orderId, ct)).SingleOrDefault();
 
