@@ -8,10 +8,27 @@ import { getErrorMessage, getMenuItems, getReviews } from "../../services/api";
 import { LOW_STOCK_THRESHOLD, averageRatings } from "../../utils/orderHelpers";
 import { decodeHtmlEntities, formatPricePHP } from "../../utils/textHelpers";
 import type { FoodItem } from "../../types";
+import burgerImg from "../../assets/burger2.png";
+import pizzaImg from "../../assets/pizza1.png";
+import chickenImg from "../../assets/chicken1.png";
 import "./Dashboard.css";
 import "./Menu.css";
 
 const REFRESH_INTERVAL_MS = 5000;
+
+// Transparent food images (same as the dashboard) look clean on the red banner.
+// Pick one that matches the featured item; otherwise use the item's own photo.
+const HERO_IMAGES: [keyword: string, image: string][] = [
+  ["burger", burgerImg],
+  ["pizza", pizzaImg],
+  ["chicken", chickenImg],
+];
+
+function heroImageFor(item: FoodItem) {
+  const name = decodeHtmlEntities(item.name).toLowerCase();
+  const match = HERO_IMAGES.find(([keyword]) => name.includes(keyword));
+  return match ? match[1] : item.image || FALLBACK_FOOD_IMAGE;
+}
 
 type Ratings = Record<string, { average: number; count: number }>;
 
@@ -251,7 +268,7 @@ export default function Menu() {
               </div>
               <div className="menu-hero-image">
                 <img
-                  src={featuredItem.image || FALLBACK_FOOD_IMAGE}
+                  src={heroImageFor(featuredItem)}
                   alt={decodeHtmlEntities(featuredItem.name)}
                   onError={showFallbackImage}
                 />
