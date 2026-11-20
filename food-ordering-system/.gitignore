@@ -27,3 +27,7 @@ dist-ssr
 *.sw?
 bin/
 obj/
+
+# Visual Studio local files
+.vs/
+*.user
