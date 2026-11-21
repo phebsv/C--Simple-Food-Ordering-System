@@ -420,7 +420,13 @@ export default function AdminOrders() {
                   <div className="payment-info">
                     <div className="info-row">
                       <label>Payment Method</label>
-                      <p>{displayValue(selectedOrder.paymentMethod)}</p>
+                      <p>
+                        {selectedOrder.paymentMethod === "gcash"
+                          ? "GCash"
+                          : selectedOrder.paymentMethod === "maya"
+                            ? "Maya"
+                            : displayValue(selectedOrder.paymentMethod)}
+                      </p>
                     </div>
                     {selectedOrder.deliveryNotes && (
                       <div className="info-row">

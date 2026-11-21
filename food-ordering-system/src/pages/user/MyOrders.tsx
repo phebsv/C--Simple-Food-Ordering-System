@@ -246,7 +246,11 @@ export default function MyOrders() {
                       </p>
                       <p>
                         <span>Payment:</span>{" "}
-                        {displayValue(order.paymentMethod?.replace("-", " "))}
+                        {order.paymentMethod === "gcash"
+                          ? "GCash"
+                          : order.paymentMethod === "maya"
+                            ? "Maya"
+                            : displayValue(order.paymentMethod?.replace("-", " "))}
                       </p>
                     </div>
 
