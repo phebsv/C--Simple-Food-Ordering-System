@@ -22,7 +22,7 @@ internal sealed class CheckoutService(MySqlOrderStore orders) : ICheckoutService
         if (address.Length is < 10 or > 300)
             throw ApiError.Invalid("Enter a delivery address between 10 and 300 characters.");
         if (notes?.Length > 300) throw ApiError.Invalid("Delivery notes must fit within 300 characters.");
-        if (request.PaymentMethod is not ("cash" or "credit-card" or "debit-card"))
+        if (request.PaymentMethod is not ("cash" or "credit-card" or "debit-card" or "gcash" or "maya"))
             throw ApiError.Invalid("Choose a valid payment method.");
 
         if (request.Items is not { Count: > 0 }) throw ApiError.Invalid("Your cart is empty.");
