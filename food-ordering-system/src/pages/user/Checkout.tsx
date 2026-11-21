@@ -318,11 +318,6 @@ export default function Checkout() {
                     <option value="cash">Cash on Delivery</option>
                   </select>
                 </div>
-                {(paymentMethod === "gcash" || paymentMethod === "maya") && (
-                  <p className="wallet-demo-notice">
-                    Demo only: no payment is processed, and wallet details are not saved.
-                  </p>
-                )}
               </div>
 
               {error && <div className="checkout-error">{error}</div>}
@@ -389,9 +384,6 @@ export default function Checkout() {
             aria-labelledby="wallet-modal-title"
           >
             <h2 id="wallet-modal-title">{walletModalProvider === "gcash" ? "GCash" : "Maya"} Details</h2>
-            <p className="payment-modal-notice">
-              Demo only. No payment will be processed. These details are used only for this form and are not sent or saved.
-            </p>
             <form onSubmit={handleWalletDetailsSubmit} noValidate>
               <div className="checkout-form-group">
                 <label htmlFor="wallet-name">Registered Wallet Name *</label>
@@ -444,9 +436,6 @@ export default function Checkout() {
             <h2 id="card-modal-title">
               {cardModalMethod === "credit-card" ? "Credit Card" : "Debit Card"} Details
             </h2>
-            <p className="payment-modal-notice">
-              Demo only. No payment will be processed. Do not enter real card details; form values are not sent or saved.
-            </p>
             <form onSubmit={handleCardDetailsSubmit} noValidate>
               <div className="checkout-form-group">
                 <label htmlFor="cardholder-name">Cardholder Name *</label>
