@@ -76,6 +76,21 @@ internal static class NomNomRoutes
             return Results.NoContent();
         });
 
+        var reviews = app.MapGroup("/reviews").RequireAuthorization();
+        reviews.MapGet("", async (IReviewService service, CancellationToken ct) =>
+            Results.Ok(await service.ListAsync(ct)));
+        reviews.MapPost("", async (AddReviewRequest request, ClaimsPrincipal user, IReviewService service,
+            CancellationToken ct) =>
+        {
+            var review = await service.AddAsync(Actor(user), request, ct);
+            return Results.Created($"/reviews/{review.Id}", review);
+        });
+        reviews.MapDelete("/{id}", async (string id, IReviewService service, CancellationToken ct) =>
+        {
+            await service.DeleteAsync(id, ct);
+            return Results.NoContent();
+        }).RequireAuthorization(AccessPolicies.Administrator);
+
         var orders = app.MapGroup("/orders").RequireAuthorization();
         orders.MapPost("", async (CheckoutRequest request, ClaimsPrincipal user, ICheckoutService service,
             CancellationToken ct) =>
