@@ -5,6 +5,8 @@ using NomNom.Api.Services;
 using NomNom.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddControllers();
+
 var connectionString = builder.Configuration.GetConnectionString("NomNom");
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Set the ConnectionStrings:NomNom setting before starting the API.");
@@ -63,7 +65,7 @@ app.Use(async (context, next) =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", () => "Hello World!");
+app.MapControllers();
 app.MapNomNomRoutes();
 
 app.Run();
