@@ -2,20 +2,20 @@ using System.Text.Json.Serialization;
 
 namespace NomNom.Api.Contracts;
 
-internal sealed record RegisterRequest(
+public sealed record RegisterRequest(
     string? Name,
     string? Email,
     string? Password,
     string? Phone,
     string? Address);
 
-internal sealed record LoginRequest(string? Email, string? Password);
+public sealed record LoginRequest(string? Email, string? Password);
 
-internal sealed record UpdateProfileRequest(string? Name, string? Phone, string? Address);
+public sealed record UpdateProfileRequest(string? Name, string? Phone, string? Address);
 
-internal sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
+public sealed record ChangePasswordRequest(string? CurrentPassword, string? NewPassword);
 
-internal sealed record PublicUser(
+public sealed record PublicUser(
     string Id,
     string Name,
     string Email,
@@ -23,7 +23,7 @@ internal sealed record PublicUser(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Phone,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Address);
 
-internal sealed record AuthUser(
+public sealed record AuthUser(
     string Id,
     string Name,
     string Email,
@@ -32,6 +32,6 @@ internal sealed record AuthUser(
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Phone,
     [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] string? Address);
 
-internal sealed record AuthData(string Token, AuthUser User);
+public sealed record AuthData(string Token, AuthUser User);
 
-internal sealed record AuthResponse(string Message, AuthData Data);
+public sealed record AuthResponse(string Message, AuthData Data);

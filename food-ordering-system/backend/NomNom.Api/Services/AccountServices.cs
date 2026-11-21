@@ -3,22 +3,22 @@ using NomNom.Api.Models;
 
 namespace NomNom.Api.Services;
 
-internal sealed record AccountIdentity(string UserId, bool IsAdmin);
+public sealed record AccountIdentity(string UserId, bool IsAdmin);
 
-internal interface IAccountService
+public interface IAccountService
 {
     Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken);
     Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken);
 }
 
-internal interface ISessionService
+public interface ISessionService
 {
     Task<string> IssueAsync(AccountIdentity account, CancellationToken cancellationToken);
     Task<AccountIdentity?> ValidateAsync(string token, CancellationToken cancellationToken);
     Task RevokeAsync(string token, CancellationToken cancellationToken);
 }
 
-internal interface IProfileService
+public interface IProfileService
 {
     Task<PublicUser?> GetAsync(AccountIdentity actor, string userId, CancellationToken cancellationToken);
 

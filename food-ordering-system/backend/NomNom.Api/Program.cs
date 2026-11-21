@@ -1,10 +1,26 @@
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Formatters;
 using MySqlConnector;
 using NomNom.Api;
 using NomNom.Api.Services;
 using NomNom.Api.Storage;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services
+    .AddControllers(options =>
+    {
+        options.AllowEmptyInputInBodyModelBinding = true;
+        options.InputFormatters.OfType<SystemTextJsonInputFormatter>().Single()
+            .SupportedMediaTypes.Remove("text/json");
+    })
+    .ConfigureApiBehaviorOptions(options =>
+    {
+        options.SuppressMapClientErrors = true;
+        options.InvalidModelStateResponseFactory = _ =>
+            new BadRequestObjectResult(new { message = "Invalid request." });
+    });
+
 var connectionString = builder.Configuration.GetConnectionString("NomNom");
 if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Set the ConnectionStrings:NomNom setting before starting the API.");
@@ -43,6 +59,13 @@ app.Use(async (context, next) =>
     try
     {
         await next(context);
+
+        if (!context.Response.HasStarted &&
+            context.Response.StatusCode == StatusCodes.Status415UnsupportedMediaType &&
+            string.IsNullOrEmpty(context.Request.ContentType))
+        {
+            await context.Response.WriteAsJsonAsync(new { message = "Invalid request." });
+        }
     }
     catch (ApiError error) when (!context.Response.HasStarted)
     {
@@ -63,7 +86,7 @@ app.Use(async (context, next) =>
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.MapGet("/", () => "Hello World!");
+app.MapControllers();
 app.MapNomNomRoutes();
 
 app.Run();

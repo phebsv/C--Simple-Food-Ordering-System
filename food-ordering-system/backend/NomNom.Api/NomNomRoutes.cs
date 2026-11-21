@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication;
 using NomNom.Api.Contracts;
 using NomNom.Api.Services;
 using System.Security.Claims;
@@ -9,25 +8,6 @@ internal static class NomNomRoutes
 {
     public static void MapNomNomRoutes(this WebApplication app)
     {
-        app.MapPost("/auth/register", async (RegisterRequest request, IAccountService service, CancellationToken ct) =>
-            Results.Json(await service.RegisterAsync(request, ct), statusCode: 201));
-        app.MapPost("/auth/login", (LoginRequest request, IAccountService service, CancellationToken ct) =>
-            service.LoginAsync(request, ct));
-        app.MapPost("/auth/logout", async (HttpContext context, ISessionService sessions, CancellationToken ct) =>
-        {
-            var token = await context.GetTokenAsync(SessionAuthenticationHandler.SchemeName,
-                SessionAuthenticationHandler.SessionTokenName);
-            if (token is null) return Results.Challenge();
-
-            await sessions.RevokeAsync(token, ct);
-            context.Response.Headers.CacheControl = "no-store";
-            return Results.NoContent();
-        }).RequireAuthorization();
-        app.MapGet("/auth/session", (HttpContext context) =>
-        {
-            context.Response.Headers.CacheControl = "no-store";
-            return Results.NoContent();
-        }).RequireAuthorization();
         app.MapGet("/menu", async (string? category, string? search, IMenuService service, CancellationToken ct) =>
             Results.Ok(await service.ListAsync(category, search, ct)));
         app.MapGet("/menu/{id}", async (string id, IMenuService service, CancellationToken ct) =>
@@ -62,19 +42,6 @@ internal static class NomNomRoutes
             await service.ClearAsync(Actor(user), ct);
             return Results.NoContent();
         }).RequireAuthorization();
-
-        var profiles = app.MapGroup("/users/{id}").RequireAuthorization();
-        profiles.MapGet("", async (string id, ClaimsPrincipal user, IProfileService service, CancellationToken ct) =>
-            Results.Ok(await service.GetAsync(Actor(user), id, ct)));
-        profiles.MapPatch("", async (string id, UpdateProfileRequest request, ClaimsPrincipal user,
-            IProfileService service, CancellationToken ct) =>
-            Results.Ok(await service.UpdateAsync(Actor(user), id, request, ct)));
-        profiles.MapPost("/password", async (string id, ChangePasswordRequest request, ClaimsPrincipal user,
-            IProfileService service, CancellationToken ct) =>
-        {
-            await service.ChangePasswordAsync(Actor(user), id, request, ct);
-            return Results.NoContent();
-        });
 
         var reviews = app.MapGroup("/reviews").RequireAuthorization();
         reviews.MapGet("", async (IReviewService service, CancellationToken ct) =>
