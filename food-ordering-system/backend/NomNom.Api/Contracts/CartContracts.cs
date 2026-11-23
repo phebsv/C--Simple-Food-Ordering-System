@@ -1,6 +1,6 @@
 namespace NomNom.Api.Contracts;
 
-internal sealed record CartLine(
+public sealed record CartLine(
     string Id,
     string MenuId,
     string Name,
@@ -10,5 +10,5 @@ internal sealed record CartLine(
     string Image,
     int Quantity);
 
-internal sealed record AddCartItemRequest(string? MenuId);
-internal sealed record UpdateCartItemRequest(int? Quantity);
+public sealed record AddCartItemRequest(string? MenuId);
+public sealed record UpdateCartItemRequest(int? Quantity);

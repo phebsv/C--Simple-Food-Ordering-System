@@ -1,10 +1,10 @@
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class MenuService(MySqlMenuStore store) : IMenuService
+internal sealed class MenuService(MySqlMenuRepository store) : IMenuService
 {
     public async Task<IReadOnlyList<MenuItem>> ListAsync(
         string? category, string? search, CancellationToken cancellationToken)

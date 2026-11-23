@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace NomNom.Api.Models;
 
 [JsonConverter(typeof(JsonStringEnumConverter<OrderStatus>))]
-internal enum OrderStatus
+public enum OrderStatus
 {
     Pending,
     Preparing,
@@ -12,7 +12,7 @@ internal enum OrderStatus
     Cancelled
 }
 
-internal sealed record Order
+public sealed record Order
 {
     public required string Id { get; init; }
     public required string CustomerId { get; init; }
@@ -32,7 +32,7 @@ internal sealed record Order
     public string? DeliveryNotes { get; init; }
 }
 
-internal sealed record OrderItem
+public sealed record OrderItem
 {
     public required string Id { get; init; }
     public required string Name { get; init; }

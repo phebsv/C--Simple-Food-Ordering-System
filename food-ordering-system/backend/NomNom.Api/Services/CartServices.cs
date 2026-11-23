@@ -2,7 +2,7 @@ using NomNom.Api.Contracts;
 
 namespace NomNom.Api.Services;
 
-internal interface ICartService
+public interface ICartService
 {
     Task<IReadOnlyList<CartLine>> ListAsync(AccountIdentity actor, CancellationToken cancellationToken);
     Task<CartLine> AddAsync(AccountIdentity actor, AddCartItemRequest request, CancellationToken cancellationToken);

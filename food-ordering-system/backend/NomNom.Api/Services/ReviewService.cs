@@ -1,10 +1,10 @@
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class ReviewService(MySqlReviewStore store, MySqlOrderStore orders, TimeProvider clock)
+internal sealed class ReviewService(MySqlReviewRepository store, MySqlOrderRepository orders, TimeProvider clock)
     : IReviewService
 {
     private const int MaxCommentLength = 500;
@@ -48,7 +48,7 @@ internal sealed class ReviewService(MySqlReviewStore store, MySqlOrderStore orde
             FoodItemName = item.Name,
             Rating = request.Rating.Value,
             Comment = comment,
-            CreatedAt = MySqlReviewStore.Timestamp(now),
+            CreatedAt = MySqlReviewRepository.Timestamp(now),
             Hidden = false
         };
 

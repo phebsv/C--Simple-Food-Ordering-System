@@ -2,9 +2,9 @@ using System.Globalization;
 using MySqlConnector;
 using NomNom.Api.Models;
 
-namespace NomNom.Api.Storage;
+namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlReviewStore(MySqlDataSource dataSource)
+internal sealed class MySqlReviewRepository(MySqlDataSource dataSource)
 {
     public async Task<List<Review>> ListAsync(CancellationToken cancellationToken)
     {

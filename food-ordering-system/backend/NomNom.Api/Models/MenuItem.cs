@@ -2,7 +2,7 @@ using System.Text.Json.Serialization;
 
 namespace NomNom.Api.Models;
 
-internal sealed record MenuItem
+public sealed record MenuItem
 {
     public required string Id { get; init; }
     public required string Name { get; init; }

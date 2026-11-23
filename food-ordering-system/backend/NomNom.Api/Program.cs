@@ -2,9 +2,8 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Formatters;
 using MySqlConnector;
-using NomNom.Api;
 using NomNom.Api.Services;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services
@@ -26,11 +25,11 @@ if (string.IsNullOrWhiteSpace(connectionString))
     throw new InvalidOperationException("Set the ConnectionStrings:NomNom setting before starting the API.");
 
 builder.Services.AddMySqlDataSource(connectionString);
-builder.Services.AddSingleton<MySqlAccountStore>();
-builder.Services.AddSingleton<MySqlMenuStore>();
-builder.Services.AddSingleton<MySqlCartStore>();
-builder.Services.AddSingleton<MySqlOrderStore>();
-builder.Services.AddSingleton<MySqlReviewStore>();
+builder.Services.AddSingleton<MySqlAccountRepository>();
+builder.Services.AddSingleton<MySqlMenuRepository>();
+builder.Services.AddSingleton<MySqlCartRepository>();
+builder.Services.AddSingleton<MySqlOrderRepository>();
+builder.Services.AddSingleton<MySqlReviewRepository>();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
@@ -50,7 +49,6 @@ var origins = builder.Configuration.GetSection("NomNom:AllowedOrigins").Get<stri
     ?? (builder.Environment.IsDevelopment() ? ["http://localhost:5173", "http://127.0.0.1:5173"] : []);
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy =>
     policy.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod()));
-builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
 var app = builder.Build();
 
 app.UseCors();
@@ -87,6 +85,5 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-app.MapNomNomRoutes();
 
 app.Run();

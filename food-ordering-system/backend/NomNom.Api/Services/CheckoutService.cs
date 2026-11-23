@@ -1,12 +1,12 @@
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
 internal sealed record CheckoutDetails(string Name, string Phone, string Address, string Payment, string? Notes);
 
-internal sealed class CheckoutService(MySqlOrderStore orders) : ICheckoutService
+internal sealed class CheckoutService(MySqlOrderRepository orders) : ICheckoutService
 {
     public Task<Order> PlaceOrderAsync(AccountIdentity actor, CheckoutRequest request, CancellationToken ct)
     {
@@ -40,7 +40,7 @@ internal sealed class CheckoutService(MySqlOrderStore orders) : ICheckoutService
     }
 }
 
-internal sealed class CustomerOrderService(MySqlOrderStore orders) : ICustomerOrderService
+internal sealed class CustomerOrderService(MySqlOrderRepository orders) : ICustomerOrderService
 {
     public Task<IReadOnlyList<Order>> ListAsync(AccountIdentity actor, CancellationToken ct) =>
         orders.ListAsync(actor.UserId, ct);

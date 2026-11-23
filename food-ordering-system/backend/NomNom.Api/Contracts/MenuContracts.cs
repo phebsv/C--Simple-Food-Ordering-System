@@ -1,6 +1,6 @@
 namespace NomNom.Api.Contracts;
 
-internal sealed record CreateMenuItemRequest(
+public sealed record CreateMenuItemRequest(
     string? Name,
     string? Description,
     decimal? Price,
@@ -9,7 +9,7 @@ internal sealed record CreateMenuItemRequest(
     int? Stock,
     bool? Available);
 
-internal sealed record UpdateMenuItemRequest(
+public sealed record UpdateMenuItemRequest(
     string? Name,
     string? Description,
     decimal? Price,

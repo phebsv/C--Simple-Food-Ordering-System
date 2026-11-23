@@ -3,7 +3,7 @@ using NomNom.Api.Models;
 
 namespace NomNom.Api.Services;
 
-internal interface IReviewService
+public interface IReviewService
 {
     Task<IReadOnlyList<Review>> ListAsync(CancellationToken cancellationToken);
     Task<Review> AddAsync(AccountIdentity actor, AddReviewRequest request, CancellationToken cancellationToken);

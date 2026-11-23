@@ -4,9 +4,9 @@ using MySqlConnector;
 using NomNom.Api.Models;
 using NomNom.Api.Services;
 
-namespace NomNom.Api.Storage;
+namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlOrderStore(MySqlDataSource dataSource, TimeProvider clock)
+internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvider clock)
 {
     public async Task<Order> PlaceAsync(
         string customerId, CheckoutDetails delivery, IReadOnlyDictionary<string, int> expectedCart, CancellationToken ct)
@@ -72,7 +72,7 @@ internal sealed class MySqlOrderStore(MySqlDataSource dataSource, TimeProvider c
                 WHERE id = @menuId;
                 """, ("@menuId", item.Id), ("@quantity", item.Quantity), ("@now", now));
             await stock.ExecuteNonQueryAsync(ct);
-            await MySqlCartStore.DeleteAsync(connection, transaction, customerId, cartId, ct);
+            await MySqlCartRepository.DeleteAsync(connection, transaction, customerId, cartId, ct);
         }
 
         await transaction.CommitAsync(ct);

@@ -1,9 +1,9 @@
 using MySqlConnector;
 using NomNom.Api.Models;
 
-namespace NomNom.Api.Storage;
+namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlCartStore(MySqlDataSource dataSource)
+internal sealed class MySqlCartRepository(MySqlDataSource dataSource)
 {
     private const string SelectItems = """
         SELECT id, customer_id, menu_id, name, description, price, category, image, quantity

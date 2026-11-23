@@ -3,11 +3,11 @@ using System.Text;
 using System.Text.RegularExpressions;
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class AccountService(MySqlAccountStore store, ISessionService sessions) : IAccountService, IProfileService
+internal sealed class AccountService(MySqlAccountRepository store, ISessionService sessions) : IAccountService, IProfileService
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {

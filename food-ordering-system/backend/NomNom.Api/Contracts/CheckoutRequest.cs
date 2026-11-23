@@ -1,6 +1,6 @@
 namespace NomNom.Api.Contracts;
 
-internal sealed record CheckoutRequest(
+public sealed record CheckoutRequest(
     string? CustomerName,
     string? CustomerPhone,
     string? CustomerAddress,
@@ -8,4 +8,4 @@ internal sealed record CheckoutRequest(
     string? DeliveryNotes,
     List<CheckoutItemRequest?>? Items);
 
-internal sealed record CheckoutItemRequest(string? Id, int? Quantity);
+public sealed record CheckoutItemRequest(string? Id, int? Quantity);

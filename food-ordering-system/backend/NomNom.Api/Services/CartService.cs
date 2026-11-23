@@ -1,10 +1,10 @@
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class CartService(MySqlCartStore store, MySqlMenuStore menu) : ICartService
+internal sealed class CartService(MySqlCartRepository store, MySqlMenuRepository menu) : ICartService
 {
     public async Task<IReadOnlyList<CartLine>> ListAsync(
         AccountIdentity actor, CancellationToken cancellationToken)
