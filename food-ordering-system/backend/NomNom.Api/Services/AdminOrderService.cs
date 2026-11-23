@@ -1,11 +1,11 @@
 using NomNom.Api.Contracts;
 using System.Globalization;
 using NomNom.Api.Models;
-using NomNom.Api.Storage;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class AdminOrderService(MySqlOrderStore orders) : IAdminOrderService
+internal sealed class AdminOrderService(MySqlOrderRepository orders) : IAdminOrderService
 {
     public async Task<IReadOnlyList<Order>> ListAsync(
         string? search, string? date, CancellationToken cancellationToken)

@@ -3,9 +3,9 @@ using MySqlConnector;
 using NomNom.Api.Models;
 using NomNom.Api.Contracts;
 
-namespace NomNom.Api.Storage;
+namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlMenuStore(MySqlDataSource dataSource)
+internal sealed class MySqlMenuRepository(MySqlDataSource dataSource)
 {
     private const string SelectItems = """
         SELECT id, name, description, price, category, image, available, stock, last_updated

@@ -1,3 +1,3 @@
 namespace NomNom.Api.Contracts;
 
-internal sealed record UpdateOrderStatusRequest(string? Status);
+public sealed record UpdateOrderStatusRequest(string? Status);

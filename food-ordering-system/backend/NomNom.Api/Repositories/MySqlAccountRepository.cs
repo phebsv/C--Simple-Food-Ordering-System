@@ -1,9 +1,9 @@
 using MySqlConnector;
 using NomNom.Api.Models;
 
-namespace NomNom.Api.Storage;
+namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlAccountStore(MySqlDataSource dataSource)
+internal sealed class MySqlAccountRepository(MySqlDataSource dataSource)
 {
     public Task<UserAccount?> FindByEmailAsync(string email, CancellationToken cancellationToken) =>
         FindAsync(email, byEmail: true, cancellationToken);

@@ -1,6 +1,6 @@
 namespace NomNom.Api.Models;
 
-internal sealed record Review
+public sealed record Review
 {
     public required string Id { get; init; }
     public required string OrderId { get; init; }
