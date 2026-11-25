@@ -3,7 +3,7 @@ using NomNom.Api.Models;
 
 namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlCartRepository(MySqlDataSource dataSource)
+internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRepository
 {
     private const string SelectItems = """
         SELECT id, customer_id, menu_id, name, description, price, category, image, quantity
