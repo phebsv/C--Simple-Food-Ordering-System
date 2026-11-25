@@ -30,6 +30,16 @@ builder.Services.AddSingleton<MySqlMenuRepository>();
 builder.Services.AddSingleton<MySqlCartRepository>();
 builder.Services.AddSingleton<MySqlOrderRepository>();
 builder.Services.AddSingleton<MySqlReviewRepository>();
+builder.Services.AddSingleton<IAccountRepository>(services =>
+    services.GetRequiredService<MySqlAccountRepository>());
+builder.Services.AddSingleton<IMenuRepository>(services =>
+    services.GetRequiredService<MySqlMenuRepository>());
+builder.Services.AddSingleton<ICartRepository>(services =>
+    services.GetRequiredService<MySqlCartRepository>());
+builder.Services.AddSingleton<IOrderRepository>(services =>
+    services.GetRequiredService<MySqlOrderRepository>());
+builder.Services.AddSingleton<IReviewRepository>(services =>
+    services.GetRequiredService<MySqlReviewRepository>());
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<ISessionService, SessionService>();
 builder.Services.AddAuthentication(SessionAuthenticationHandler.SchemeName)
