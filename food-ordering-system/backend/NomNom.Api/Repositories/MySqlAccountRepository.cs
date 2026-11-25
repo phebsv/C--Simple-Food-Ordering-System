@@ -3,7 +3,7 @@ using NomNom.Api.Models;
 
 namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlAccountRepository(MySqlDataSource dataSource)
+internal sealed class MySqlAccountRepository(MySqlDataSource dataSource) : IAccountRepository
 {
     public Task<UserAccount?> FindByEmailAsync(string email, CancellationToken cancellationToken) =>
         FindAsync(email, byEmail: true, cancellationToken);
