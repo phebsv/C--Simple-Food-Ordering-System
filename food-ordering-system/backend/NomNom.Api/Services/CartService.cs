@@ -4,7 +4,7 @@ using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class CartService(MySqlCartRepository store, MySqlMenuRepository menu) : ICartService
+internal sealed class CartService(ICartRepository store, IMenuRepository menu) : ICartService
 {
     public async Task<IReadOnlyList<CartLine>> ListAsync(
         AccountIdentity actor, CancellationToken cancellationToken)
