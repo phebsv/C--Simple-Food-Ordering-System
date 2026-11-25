@@ -4,7 +4,7 @@ using NomNom.Api.Models;
 
 namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlReviewRepository(MySqlDataSource dataSource)
+internal sealed class MySqlReviewRepository(MySqlDataSource dataSource) : IReviewRepository
 {
     public async Task<List<Review>> ListAsync(CancellationToken cancellationToken)
     {
