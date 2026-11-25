@@ -5,6 +5,7 @@ import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import AdminModal from "../../components/admin/AdminModal";
 import { useAdmin } from "../../context/AdminContext";
 import type { InventoryItem } from "../../types";
+import { sortInventoryByPriority } from "../../utils/orderHelpers";
 import "./AdminInventory.css";
 
 type StatusFilter =
@@ -30,7 +31,9 @@ export default function AdminInventory() {
   } = useAdmin();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [statusFiltersSelected, setStatusFiltersSelected] = useState<
+    Set<StatusFilter>
+  >(() => new Set(["All"]));
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [isRestockOpen, setIsRestockOpen] = useState(false);
   const [restockForm, setRestockForm] = useState<RestockFormData>({
@@ -44,15 +47,18 @@ export default function AdminInventory() {
 
   // ==================== FILTERING ====================
   const filteredItems = useMemo(() => {
-    return inventoryItems.filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "All" || item.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [inventoryItems, searchQuery, statusFilter]);
+    return sortInventoryByPriority(
+      inventoryItems.filter((item) => {
+        const matchesSearch = item.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const matchesStatus =
+          statusFiltersSelected.has("All") ||
+          statusFiltersSelected.has(item.status);
+        return matchesSearch && matchesStatus;
+      }),
+    );
+  }, [inventoryItems, searchQuery, statusFiltersSelected]);
 
   // ==================== HANDLERS ====================
   const handleOpenRestock = (item: InventoryItem) => {
@@ -92,6 +98,22 @@ export default function AdminInventory() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleStatusFilterToggle = (status: StatusFilter) => {
+    setStatusFiltersSelected((current) => {
+      if (status === "All") return new Set(["All"]);
+
+      const next = new Set(current);
+      next.delete("All");
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+
+      return next.size === 0 ? new Set(["All"]) : next;
+    });
   };
 
   const statusFilters: StatusFilter[] = [
@@ -136,8 +158,9 @@ export default function AdminInventory() {
           {statusFilters.map((status) => (
             <button
               key={status}
-              className={`filter-tab ${statusFilter === status ? "active" : ""}`}
-              onClick={() => setStatusFilter(status)}
+              className={`filter-tab ${statusFiltersSelected.has(status) ? "active" : ""}`}
+              onClick={() => handleStatusFilterToggle(status)}
+              aria-pressed={statusFiltersSelected.has(status)}
             >
               {status}
               <span className="filter-count">
