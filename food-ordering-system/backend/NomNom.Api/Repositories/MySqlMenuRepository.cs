@@ -5,7 +5,7 @@ using NomNom.Api.Contracts;
 
 namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlMenuRepository(MySqlDataSource dataSource)
+internal sealed class MySqlMenuRepository(MySqlDataSource dataSource) : IMenuRepository
 {
     private const string SelectItems = """
         SELECT id, name, description, price, category, image, available, stock, last_updated
