@@ -1,10 +1,11 @@
+using System.Globalization;
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
 using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class ReviewService(MySqlReviewRepository store, MySqlOrderRepository orders, TimeProvider clock)
+internal sealed class ReviewService(IReviewRepository store, IOrderRepository orders, TimeProvider clock)
     : IReviewService
 {
     private const int MaxCommentLength = 500;
@@ -48,7 +49,7 @@ internal sealed class ReviewService(MySqlReviewRepository store, MySqlOrderRepos
             FoodItemName = item.Name,
             Rating = request.Rating.Value,
             Comment = comment,
-            CreatedAt = MySqlReviewRepository.Timestamp(now),
+            CreatedAt = Timestamp(now),
             Hidden = false
         };
 
@@ -63,4 +64,8 @@ internal sealed class ReviewService(MySqlReviewRepository store, MySqlOrderRepos
         if (!await store.DeleteAsync(id, cancellationToken))
             throw ApiError.NotFound("Review not found.");
     }
+
+    private static string Timestamp(DateTime value) =>
+        DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            .ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'", CultureInfo.InvariantCulture);
 }
