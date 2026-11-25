@@ -7,7 +7,7 @@ using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class AccountService(MySqlAccountRepository store, ISessionService sessions) : IAccountService, IProfileService
+internal sealed class AccountService(IAccountRepository store, ISessionService sessions) : IAccountService, IProfileService
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
