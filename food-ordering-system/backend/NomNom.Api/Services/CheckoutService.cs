@@ -4,9 +4,9 @@ using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed record CheckoutDetails(string Name, string Phone, string Address, string Payment, string? Notes);
+public sealed record CheckoutDetails(string Name, string Phone, string Address, string Payment, string? Notes);
 
-internal sealed class CheckoutService(MySqlOrderRepository orders) : ICheckoutService
+internal sealed class CheckoutService(IOrderRepository orders) : ICheckoutService
 {
     public Task<Order> PlaceOrderAsync(AccountIdentity actor, CheckoutRequest request, CancellationToken ct)
     {
@@ -40,7 +40,7 @@ internal sealed class CheckoutService(MySqlOrderRepository orders) : ICheckoutSe
     }
 }
 
-internal sealed class CustomerOrderService(MySqlOrderRepository orders) : ICustomerOrderService
+internal sealed class CustomerOrderService(IOrderRepository orders) : ICustomerOrderService
 {
     public Task<IReadOnlyList<Order>> ListAsync(AccountIdentity actor, CancellationToken ct) =>
         orders.ListAsync(actor.UserId, ct);
