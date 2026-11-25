@@ -5,7 +5,7 @@ using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
-internal sealed class AdminOrderService(MySqlOrderRepository orders) : IAdminOrderService
+internal sealed class AdminOrderService(IOrderRepository orders) : IAdminOrderService
 {
     public async Task<IReadOnlyList<Order>> ListAsync(
         string? search, string? date, CancellationToken cancellationToken)
