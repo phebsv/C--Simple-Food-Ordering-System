@@ -6,7 +6,7 @@ using NomNom.Api.Services;
 
 namespace NomNom.Api.Repositories;
 
-internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvider clock)
+internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvider clock) : IOrderRepository
 {
     public async Task<Order> PlaceAsync(
         string customerId, CheckoutDetails delivery, IReadOnlyDictionary<string, int> expectedCart, CancellationToken ct)
