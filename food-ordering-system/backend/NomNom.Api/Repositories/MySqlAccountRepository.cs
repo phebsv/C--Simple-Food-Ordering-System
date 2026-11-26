@@ -1,4 +1,5 @@
 using MySqlConnector;
+using NomNom.Api.Contracts;
 using NomNom.Api.Models;
 
 namespace NomNom.Api.Repositories;
@@ -19,7 +20,9 @@ internal sealed class MySqlAccountRepository(MySqlDataSource dataSource) : IAcco
             SELECT id, email, name, role, password_hash, phone, address
             FROM users
             """;
-        command.CommandText += byEmail ? " WHERE email = @value;" : " WHERE id = @value;";
+        command.CommandText += byEmail
+            ? " WHERE email = @value AND is_deleted = FALSE;"
+            : " WHERE id = @value AND is_deleted = FALSE;";
         command.Parameters.AddWithValue("@value", value);
         await using var row = await command.ExecuteReaderAsync(cancellationToken);
         if (!await row.ReadAsync(cancellationToken)) return null;
@@ -44,7 +47,7 @@ internal sealed class MySqlAccountRepository(MySqlDataSource dataSource) : IAcco
         command.CommandText = """
             UPDATE users
             SET name = COALESCE(@name, name), phone = COALESCE(@phone, phone), address = COALESCE(@address, address)
-            WHERE id = @id;
+            WHERE id = @id AND is_deleted = FALSE;
             """;
         command.Parameters.AddWithValue("@id", id);
         command.Parameters.AddWithValue("@name", name);
@@ -60,7 +63,7 @@ internal sealed class MySqlAccountRepository(MySqlDataSource dataSource) : IAcco
         await using var command = connection.CreateCommand();
         command.CommandText = """
             UPDATE users SET password_hash = @newHash
-            WHERE id = @id AND password_hash = @currentHash;
+            WHERE id = @id AND password_hash = @currentHash AND is_deleted = FALSE;
             """;
         command.Parameters.AddWithValue("@id", id);
         command.Parameters.AddWithValue("@newHash", newHash);
@@ -93,5 +96,55 @@ internal sealed class MySqlAccountRepository(MySqlDataSource dataSource) : IAcco
         {
             return false;
         }
+    }
+
+    public async Task<IReadOnlyList<DeletedUser>> ListDeletedAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, name, email, role, deleted_at
+            FROM users
+            WHERE is_deleted = TRUE
+            ORDER BY deleted_at DESC, id;
+            """;
+        await using var rows = await command.ExecuteReaderAsync(cancellationToken);
+        var users = new List<DeletedUser>();
+        while (await rows.ReadAsync(cancellationToken))
+        {
+            users.Add(new DeletedUser(
+                rows.GetString(0),
+                rows.GetString(1),
+                rows.GetString(2),
+                rows.GetString(3),
+                rows.IsDBNull(4) ? null : rows.GetDateTime(4).ToString("O")));
+        }
+        return users;
+    }
+
+    public async Task<bool> SoftDeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE users
+            SET is_deleted = TRUE, deleted_at = UTC_TIMESTAMP(6)
+            WHERE id = @id AND is_deleted = FALSE;
+            """;
+        command.Parameters.AddWithValue("@id", id);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
+    }
+
+    public async Task<bool> RestoreAsync(string id, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE users
+            SET is_deleted = FALSE, deleted_at = NULL
+            WHERE id = @id AND is_deleted = TRUE;
+            """;
+        command.Parameters.AddWithValue("@id", id);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 }
