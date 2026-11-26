@@ -9,7 +9,7 @@ namespace NomNom.Api.Repositories;
 internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvider clock) : IOrderRepository
 {
     public async Task<Order> PlaceAsync(
-        string customerId, CheckoutDetails delivery, IReadOnlyDictionary<string, int> expectedCart, CancellationToken ct)
+        string customerId, Func<CheckoutSnapshot, Order> buildOrder, CancellationToken ct)
     {
         await using var connection = await dataSource.OpenConnectionAsync(ct);
         await using var transaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
@@ -19,46 +19,31 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
             "SELECT email FROM users WHERE id = @id AND is_deleted = FALSE FOR UPDATE;",
             ("@id", customerId));
         var email = (string?)await account.ExecuteScalarAsync(ct) ?? throw ApiError.Unauthorized();
-        var cart = await ReadCheckoutCartAsync(connection, transaction, customerId, ct);
-        if (cart.Count == 0) throw ApiError.Invalid("Your cart is empty.");
-        if (cart.Count != expectedCart.Count || cart.Any(line =>
-                !expectedCart.TryGetValue(line.Item.Id, out var quantity) || quantity != line.Item.Quantity))
-            throw new ApiError(409, "Your cart changed. Review it before placing your order.");
+        var lines = await ReadCheckoutCartAsync(connection, transaction, customerId, ct);
 
-        var total = cart.Sum(line => line.Item.Price * line.Item.Quantity);
-        if (total > 999_999_999_999.99m) throw ApiError.Invalid("The order total is too large.");
-        var now = clock.GetUtcNow().UtcDateTime;
-        var order = new Order
-        {
-            Id = Guid.NewGuid().ToString("N"),
-            CustomerId = customerId,
-            CustomerName = delivery.Name,
-            CustomerEmail = email,
-            CustomerPhone = delivery.Phone,
-            CustomerAddress = delivery.Address,
-            Items = cart.Select(line => line.Item).ToList(),
-            Subtotal = total,
-            Total = total,
-            Status = OrderStatus.Pending,
-            PaymentMethod = delivery.Payment,
-            DeliveryNotes = delivery.Notes,
-            CreatedAt = Timestamp(now),
-            UpdatedAt = Timestamp(now)
-        };
+        // The service decides whether the order is valid; the repository only saves what it returns.
+        var order = buildOrder(new CheckoutSnapshot(email, lines));
+        var createdAt = DateTime.Parse(order.CreatedAt, CultureInfo.InvariantCulture,
+            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+        var updatedAt = DateTime.Parse(order.UpdatedAt, CultureInfo.InvariantCulture,
+            DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
 
         await using var insert = Command(connection, transaction, """
             INSERT INTO orders (id, customer_id, customer_name, customer_email, customer_phone, customer_address,
                 subtotal, total, status, payment_method, delivery_notes, created_at, updated_at)
             VALUES (@id, @customerId, @name, @email, @phone, @address,
-                @total, @total, 'Pending', @payment, @notes, @now, @now);
-            """, ("@id", order.Id), ("@customerId", customerId), ("@name", delivery.Name), ("@email", email),
-            ("@phone", delivery.Phone), ("@address", delivery.Address), ("@total", total),
-            ("@payment", delivery.Payment), ("@notes", delivery.Notes), ("@now", now));
+                @subtotal, @total, @status, @payment, @notes, @createdAt, @updatedAt);
+            """, ("@id", order.Id), ("@customerId", customerId), ("@name", order.CustomerName),
+            ("@email", order.CustomerEmail),
+            ("@phone", order.CustomerPhone), ("@address", order.CustomerAddress),
+            ("@subtotal", order.Subtotal), ("@total", order.Total),
+            ("@status", order.Status.ToString()), ("@payment", order.PaymentMethod),
+            ("@notes", order.DeliveryNotes), ("@createdAt", createdAt), ("@updatedAt", updatedAt));
         await insert.ExecuteNonQueryAsync(ct);
 
-        for (var index = 0; index < cart.Count; index++)
+        for (var index = 0; index < lines.Count; index++)
         {
-            var (cartId, item) = cart[index];
+            var (cartId, item, _, _) = lines[index];
             await using var line = Command(connection, transaction, """
                 INSERT INTO order_items (order_id, line_number, menu_id, name, description, price, category, quantity)
                 VALUES (@orderId, @line, @menuId, @name, @description, @price, @category, @quantity);
@@ -69,9 +54,9 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
 
             await using var stock = Command(connection, transaction, """
                 UPDATE menu_items
-                SET available = stock > @quantity, stock = stock - @quantity, last_updated = @now
+                SET available = stock > @quantity, stock = stock - @quantity, last_updated = @createdAt
                 WHERE id = @menuId AND is_deleted = FALSE;
-                """, ("@menuId", item.Id), ("@quantity", item.Quantity), ("@now", now));
+                """, ("@menuId", item.Id), ("@quantity", item.Quantity), ("@createdAt", createdAt));
             await stock.ExecuteNonQueryAsync(ct);
             await MySqlCartRepository.DeleteAsync(connection, transaction, customerId, cartId, ct);
         }
@@ -80,7 +65,7 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
         return order;
     }
 
-    private static async Task<List<(string CartId, OrderItem Item)>> ReadCheckoutCartAsync(
+    private static async Task<List<CheckoutLine>> ReadCheckoutCartAsync(
         MySqlConnection connection, MySqlTransaction transaction, string customerId, CancellationToken ct)
     {
         // Lock cart lines and their live menu rows until the order and stock changes commit together.
@@ -88,29 +73,27 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
             SELECT c.id, m.id, m.name, m.description, m.price, m.category, c.quantity, m.available, m.stock
             FROM cart_items c
             JOIN menu_items m ON m.id = c.menu_id
-            WHERE c.customer_id = @customerId AND m.is_deleted = FALSE
+            WHERE c.customer_id = @customerId AND c.deleted_at IS NULL AND m.is_deleted = FALSE
             ORDER BY c.menu_id
             FOR UPDATE;
             """, ("@customerId", customerId));
         await using var rows = await command.ExecuteReaderAsync(ct);
-        var lines = new List<(string, OrderItem)>();
+        var lines = new List<CheckoutLine>();
         while (await rows.ReadAsync(ct))
         {
-            var name = rows.GetString(2);
-            var quantity = rows.GetInt32(6);
-            if (rows.IsDBNull(7) || !rows.GetBoolean(7) || rows.IsDBNull(8) ||
-                quantity < 1 || rows.GetInt32(8) < quantity)
-                throw new ApiError(409, $"The requested quantity of {name} is unavailable. Review your cart.");
-
-            lines.Add((rows.GetString(0), new OrderItem
-            {
-                Id = rows.GetString(1),
-                Name = name,
-                Description = rows.GetString(3),
-                Price = rows.GetDecimal(4),
-                Category = rows.GetString(5),
-                Quantity = quantity
-            }));
+            lines.Add(new CheckoutLine(
+                rows.GetString(0),
+                new OrderItem
+                {
+                    Id = rows.GetString(1),
+                    Name = rows.GetString(2),
+                    Description = rows.GetString(3),
+                    Price = rows.GetDecimal(4),
+                    Category = rows.GetString(5),
+                    Quantity = rows.GetInt32(6)
+                },
+                rows.IsDBNull(7) ? null : rows.GetBoolean(7),
+                rows.IsDBNull(8) ? null : rows.GetInt32(8)));
         }
         return lines;
     }
