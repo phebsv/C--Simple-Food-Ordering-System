@@ -2,14 +2,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
+import Pagination from "../../components/Pagination";
 import { addReview, getErrorMessage, getOrders, getReviews } from "../../services/api";
 import type { Order, OrderItem, Review } from "../../types";
-import { findItemReview, sortNewestFirst } from "../../utils/orderHelpers";
+import { findItemReview, formatOrderNumber, sortNewestFirst } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
+import { usePagination } from "../../utils/usePagination";
 import "./MyOrders.css";
 
 const ORDER_STATUSES = ["All", "Pending", "Preparing", "Ready", "Delivered", "Cancelled"];
 const REFRESH_INTERVAL_MS = 5000;
+const ORDERS_PER_PAGE = 5;
 const MAX_REVIEW_LENGTH = 180;
 
 const STATUS_COLORS: Record<string, string> = {
@@ -69,7 +72,7 @@ export default function MyOrders() {
 
         const previous = previousStatusRef.current;
         const changed = data.find((o) => previous[o.id] && previous[o.id] !== o.status);
-        if (changed) setToastMessage(`Order ${changed.id.slice(0, 8)} is now ${changed.status}.`);
+        if (changed) setToastMessage(`Order ${formatOrderNumber(changed)} is now ${changed.status}.`);
         previousStatusRef.current = Object.fromEntries(data.map((o) => [o.id, o.status]));
 
         setOrders(data);
@@ -111,6 +114,14 @@ export default function MyOrders() {
     return sortNewestFirst(filtered);
   }, [orders, searchQuery, selectedStatus]);
 
+  // A new search or status tab starts again at page 1.
+  const pages = usePagination(filteredOrders, ORDERS_PER_PAGE, `${searchQuery}|${selectedStatus}`);
+  const listTopRef = useRef<HTMLHeadingElement>(null);
+  const goToPage = (page: number) => {
+    pages.setPage(page);
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const openOrderModal = (order: Order, mode: OrderModalMode) => {
     setSelectedOrderId(order.id);
     setSelectedOrderMode(mode);
@@ -142,7 +153,9 @@ export default function MyOrders() {
               {toastMessage}
             </div>
           )}
-          <h1 className="my-orders-title">My Orders</h1>
+          <h1 className="my-orders-title" ref={listTopRef} style={{ scrollMarginTop: 90 }}>
+            My Orders
+          </h1>
 
           {/* Search and Filter */}
           <div className="my-orders-controls">
@@ -208,7 +221,7 @@ export default function MyOrders() {
             </div>
           ) : (
             <div className="my-orders-list">
-              {filteredOrders.map((order) => {
+              {pages.pageItems.map((order) => {
                 const orderItems = order.items;
                 const canReviewOrder =
                   order.status === "Delivered" &&
@@ -219,7 +232,7 @@ export default function MyOrders() {
                   <div key={order.id} className="my-orders-card">
                     <div className="order-card-header">
                       <div className="order-card-id">
-                        <h3>{displayValue(order.id)}</h3>
+                        <h3>Order {formatOrderNumber(order)}</h3>
                         <span
                           style={{
                             color: statusBadgeColor(order.status),
@@ -300,6 +313,15 @@ export default function MyOrders() {
                   </div>
                 );
               })}
+              <Pagination
+                page={pages.page}
+                totalPages={pages.totalPages}
+                onPageChange={goToPage}
+                firstItem={pages.firstItem}
+                lastItem={pages.lastItem}
+                totalItems={pages.totalItems}
+                itemLabel="orders"
+              />
             </div>
           )}
         </div>
@@ -440,8 +462,8 @@ function OrderDetailsModal({
               <div className="detail-section">
                 <h3>Order Information</h3>
                 <div className="detail-row">
-                  <span>Order ID:</span>
-                  <span className="detail-value">{displayValue(order.id)}</span>
+                  <span>Order No.:</span>
+                  <span className="detail-value">{formatOrderNumber(order)}</span>
                 </div>
                 <div className="detail-row">
                   <span>Status:</span>
@@ -590,10 +612,6 @@ function OrderDetailsModal({
             <>
               <div className="detail-section">
                 <h3>Summary</h3>
-                <div className="detail-row">
-                  <span>Subtotal:</span>
-                  <span>{formatPricePHP(order.subtotal)}</span>
-                </div>
                 <div className="detail-row total-row">
                   <span>Total:</span>
                   <span>{formatPricePHP(order.total)}</span>

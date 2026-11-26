@@ -73,6 +73,10 @@
 }
 
 /* ==================== PAGINATION ==================== */
+.orders-pagination .pager {
+  margin-top: 0;
+}
+
 .orders-pagination {
   display: flex;
   align-items: center;
@@ -81,34 +85,6 @@
   padding: 12px 16px;
   border-top: 1px solid #e0e0e0;
   background: #fff;
-}
-
-.pagination-info {
-  color: #666;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.pagination-btn {
-  padding: 8px 12px;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  background: white;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: #666;
-  transition: all 0.2s;
-}
-
-.pagination-btn:hover:not(:disabled) {
-  border-color: #ff6b6b;
-  color: #ff6b6b;
-}
-
-.pagination-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 .orders-table {
@@ -526,4 +502,24 @@
   .status-info {
     grid-template-columns: 1fr;
   }
+}
+
+/* Full order ID under the short number: kept for admin tracking, kept compact. */
+.order-full-id {
+  display: block;
+  max-width: 140px;
+  margin-top: 2px;
+  font-family: ui-monospace, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted, #888080);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.order-full-id-detail {
+  font-family: ui-monospace, Consolas, monospace;
+  overflow-wrap: anywhere;
+  user-select: all;
 }

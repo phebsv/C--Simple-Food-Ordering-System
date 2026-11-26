@@ -1,5 +1,5 @@
 // Single source of truth for who is logged in (customer or admin).
-// The token and user are kept in sessionStorage, or localStorage with "remember me".
+// The token and user are kept in sessionStorage, so closing the browser logs you out.
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import type { ReactNode } from "react";
@@ -14,7 +14,6 @@ type RegisterData = {
   email: string;
   password: string;
   phoneNumber: string;
-  agreeToTerms: boolean;
 };
 
 interface AuthContextType {
@@ -24,7 +23,7 @@ interface AuthContextType {
   isAdmin: boolean;
   loading: boolean;
   error: string;
-  login: (email: string, password: string, options?: { remember?: boolean }) => Promise<AuthUser | null>;
+  login: (email: string, password: string) => Promise<AuthUser | null>;
   register: (data: RegisterData) => Promise<boolean>;
   updateCustomer: (user: AuthUser) => void;
   logout: () => void;
@@ -58,18 +57,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState("");
 
   const login = useCallback(
-    async (email: string, password: string, options?: { remember?: boolean }) => {
+    async (email: string, password: string) => {
       setLoading(true);
       setError("");
       try {
         const res = await loginCustomer(email, password);
         const { token: newToken, customer: user } = res.data;
-        const area = options?.remember ? "local" : "session";
-
         removeStoredItem(TOKEN_KEY);
         removeStoredItem(USER_KEY);
-        setStoredItem(TOKEN_KEY, newToken, area);
-        setStoredItem(USER_KEY, JSON.stringify(user), area);
+        setStoredItem(TOKEN_KEY, newToken, "session");
+        setStoredItem(USER_KEY, JSON.stringify(user), "session");
         setToken(newToken);
         setCustomer(user);
         return user;
@@ -102,10 +99,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Keep the stored copy in the same storage area it was saved to.
   const updateCustomer = useCallback((user: AuthUser) => {
-    const area = localStorage.getItem(USER_KEY) ? "local" : "session";
-    setStoredItem(USER_KEY, JSON.stringify(user), area);
+    setStoredItem(USER_KEY, JSON.stringify(user), "session");
     setCustomer(user);
   }, []);
 

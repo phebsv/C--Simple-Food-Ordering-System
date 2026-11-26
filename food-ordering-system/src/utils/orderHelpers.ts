@@ -11,6 +11,22 @@ export function inventoryStatus(item: Pick<FoodItem, "stock" | "available">): In
   return "Available";
 }
 
+/**
+ * Short, readable order label: order number 1 → "#0-01", 25 → "#0-25", 107 → "#1-07".
+ * Falls back to the first 8 characters of the long id if the server has no number yet.
+ */
+export function formatOrderNumber(order: Pick<Order, "id" | "orderNumber">): string {
+  if (!order.orderNumber) return `#${order.id.slice(0, 8)}`;
+  const digits = String(order.orderNumber).padStart(3, "0");
+  return `#${digits.slice(0, -2)}-${digits.slice(-2)}`;
+}
+
+/** True when a search like "0-01", "#0-01" or "1" refers to this order's number. */
+export function matchesOrderNumber(order: Pick<Order, "orderNumber">, query: string): boolean {
+  const digits = query.replace(/[#\s-]/g, "");
+  return !!order.orderNumber && /^\d+$/.test(digits) && Number(digits) === order.orderNumber;
+}
+
 /** Newest-first sort key for orders. */
 export function getOrderTime(order: Pick<Order, "createdAt" | "updatedAt">): number {
   return new Date(order.createdAt || order.updatedAt || 0).getTime() || 0;

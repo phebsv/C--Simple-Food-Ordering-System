@@ -1,15 +1,36 @@
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
+import ConfirmDialog from "../../components/admin/ConfirmDialog";
+import Pagination from "../../components/Pagination";
 import { useCart } from "../../context/CartContext";
 import { FALLBACK_FOOD_IMAGE, showFallbackImage } from "../../constants/images";
+import type { CartItem } from "../../types";
 import { formatPricePHP } from "../../utils/textHelpers";
+import { usePagination } from "../../utils/usePagination";
 import "./Cart.css";
 
+const ITEMS_PER_PAGE = 5;
 
 export default function Cart() {
   const { items, total, removeItem, updateQuantity } = useCart();
   const navigate = useNavigate();
+  // The item waiting for the customer to confirm its removal.
+  const [pendingRemoval, setPendingRemoval] = useState<CartItem | null>(null);
+
+  // Only the item list is paged; the order summary always lists everything.
+  const pages = usePagination(items, ITEMS_PER_PAGE);
+  const listTopRef = useRef<HTMLHeadingElement>(null);
+  const goToPage = (page: number) => {
+    pages.setPage(page);
+    listTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const confirmRemoval = () => {
+    if (pendingRemoval) removeItem(pendingRemoval.id);
+    setPendingRemoval(null);
+  };
 
   return (
     <>
@@ -17,7 +38,9 @@ export default function Cart() {
       <div className="cart-page-container">
         <BgFood />
         <div className="cart-page-content">
-          <h1 className="cart-page-title">Shopping Cart</h1>
+          <h1 className="cart-page-title" ref={listTopRef} style={{ scrollMarginTop: 90 }}>
+            Shopping Cart
+          </h1>
 
           <div className="cart-layout">
             {/* Cart Items */}
@@ -36,7 +59,7 @@ export default function Cart() {
                 </div>
               ) : (
                 <div className="cart-items-list">
-                  {items.map((item) => (
+                  {pages.pageItems.map((item) => (
                     <div key={item.id} className="cart-item-card">
                       <div className="cart-item-image">
                         <img
@@ -60,7 +83,10 @@ export default function Cart() {
                         <div className="quantity-selector">
                           <button
                             onClick={() =>
-                              updateQuantity(item.id, item.quantity - 1)
+                              // Going from 1 to 0 removes the item, so ask first.
+                              item.quantity <= 1
+                                ? setPendingRemoval(item)
+                                : updateQuantity(item.id, item.quantity - 1)
                             }
                             className="qty-btn"
                             aria-label={`Decrease ${item.name} quantity`}
@@ -84,7 +110,7 @@ export default function Cart() {
                         </div>
 
                         <button
-                          onClick={() => removeItem(item.id)}
+                          onClick={() => setPendingRemoval(item)}
                           className="cart-remove-btn"
                         >
                           Remove
@@ -92,6 +118,15 @@ export default function Cart() {
                       </div>
                     </div>
                   ))}
+                  <Pagination
+                    page={pages.page}
+                    totalPages={pages.totalPages}
+                    onPageChange={goToPage}
+                    firstItem={pages.firstItem}
+                    lastItem={pages.lastItem}
+                    totalItems={pages.totalItems}
+                    itemLabel="items"
+                  />
                 </div>
               )}
             </div>
@@ -139,6 +174,21 @@ export default function Cart() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={pendingRemoval !== null}
+        title="Remove item?"
+        message={
+          pendingRemoval
+            ? `Remove ${pendingRemoval.name} (x${pendingRemoval.quantity}) from your cart?`
+            : ""
+        }
+        confirmText="Remove"
+        cancelText="Keep it"
+        isDangerous
+        onConfirm={confirmRemoval}
+        onCancel={() => setPendingRemoval(null)}
+      />
     </>
   );
 }

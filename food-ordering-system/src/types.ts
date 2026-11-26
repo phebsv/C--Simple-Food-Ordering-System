@@ -34,6 +34,8 @@ export type OrderItem = Pick<FoodItem, "id" | "name" | "description" | "price" |
 
 export type Order = {
   id: string;
+  /** Short sequential number from the server, shown as #0-01 (see formatOrderNumber). */
+  orderNumber?: number;
   customerId: string;
   customerName: string;
   customerEmail: string;

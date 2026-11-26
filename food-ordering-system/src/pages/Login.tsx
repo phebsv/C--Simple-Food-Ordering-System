@@ -13,7 +13,6 @@ import "./Login.css";
 export default function Login() {
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [remember, setRemember] = useState(false);
   const [localError, setLocalError] = useState<string>("");
 
   const { login, loading, error } = useAuth();
@@ -29,7 +28,7 @@ export default function Login() {
       return setLocalError(validation.error || "Validation failed.");
     }
 
-    const user = await login(trimmedEmail, password, { remember });
+    const user = await login(trimmedEmail, password);
     if (user) {
       navigate(isAdminUser(user) ? "/admin/dashboard" : "/dashboard");
     }
@@ -82,17 +81,6 @@ export default function Login() {
                 onChange={(e) => setPassword(e.target.value)}
                 Icon={LockIcon}
               />
-
-              <div className="login-options">
-                <label className="login-remember">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={(e) => setRemember(e.target.checked)}
-                  />
-                  Remember me
-                </label>
-              </div>
 
               {displayError && <p className="login-error">{displayError}</p>}
 

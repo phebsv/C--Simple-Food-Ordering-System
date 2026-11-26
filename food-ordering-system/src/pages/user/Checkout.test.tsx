@@ -22,6 +22,7 @@ vi.mock("../../context/CartContext", () => ({
   useCart: () => ({
     items: [{ id: "food-1", name: "Pasta", quantity: 1, price: 250 }],
     total: 250,
+    itemCount: 1,
     reloadCart: vi.fn(),
   }),
 }));
@@ -42,7 +43,7 @@ describe("Checkout payment methods", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByLabelText(/Payment Method/i)).toHaveValue("");
+    for (const option of screen.getAllByRole("radio")) expect(option).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: /Place Order/i }));
     expect(screen.getByText(/Choose a payment method/i)).toBeInTheDocument();
     expect(placeOrderMock).not.toHaveBeenCalled();
@@ -62,7 +63,7 @@ describe("Checkout payment methods", () => {
       </MemoryRouter>,
     );
 
-    await user.selectOptions(screen.getByLabelText(/Payment Method/i), "gcash");
+    await user.click(screen.getByRole("radio", { name: /GCash/i }));
     expect(screen.getByRole("dialog", { name: /GCash Details/i })).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/Registered Wallet Name/i), "Jane Doe");
@@ -101,7 +102,7 @@ describe("Checkout payment methods", () => {
       </MemoryRouter>,
     );
 
-    await user.selectOptions(screen.getByLabelText(/Payment Method/i), "credit-card");
+    await user.click(screen.getByRole("radio", { name: /Credit Card/i }));
     expect(screen.getByRole("dialog", { name: /Credit Card Details/i })).toBeInTheDocument();
 
     await user.type(screen.getByLabelText(/Cardholder Name/i), "Demo User");
@@ -124,5 +125,34 @@ describe("Checkout payment methods", () => {
       paymentMethod: "credit-card",
       deliveryNotes: "",
     });
+  });
+
+  it("shows the order summary with quantity, price and total, without a subtotal", () => {
+    render(
+      <MemoryRouter>
+        <Checkout />
+      </MemoryRouter>,
+    );
+
+    const summary = screen.getByRole("table");
+    expect(summary).toHaveTextContent("Pasta");
+    expect(summary).toHaveTextContent("₱250.00");
+    expect(screen.getByText("Total")).toBeInTheDocument();
+    expect(screen.queryByText(/Subtotal/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Delivery:/i)).not.toBeInTheDocument();
+  });
+
+  it("marks the chosen payment option as selected", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <Checkout />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("radio", { name: /Cash on Delivery/i }));
+    expect(screen.getByRole("radio", { name: /Cash on Delivery/i })).toBeChecked();
+    expect(screen.getByRole("radio", { name: /GCash/i })).not.toBeChecked();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });

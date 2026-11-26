@@ -15,7 +15,12 @@ internal sealed class AdminOrderService(IOrderRepository orders) : IAdminOrderSe
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            result = result.Where(order => order.Id.Contains(term, StringComparison.OrdinalIgnoreCase));
+            // "#0-01", "0-01" and "1" all find order number 1; the long id still works too.
+            var isNumber = long.TryParse(term.Replace("#", "").Replace("-", ""), NumberStyles.None,
+                CultureInfo.InvariantCulture, out var number);
+            result = result.Where(order =>
+                (isNumber && order.OrderNumber == number) ||
+                order.Id.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(date))

@@ -169,7 +169,6 @@ describe("Validation Helpers", () => {
       phone: "09171234567",
       password: "Password123",
       confirmPassword: "Password123",
-      agree: true,
     };
 
     it("validates correct register form", () => {
@@ -177,11 +176,6 @@ describe("Validation Helpers", () => {
       expect(result.valid).toBe(true);
     });
 
-    it("rejects form when agree is false", () => {
-      const result = validateRegisterForm({ ...validForm, agree: false });
-      expect(result.valid).toBe(false);
-      expect(result.error).toContain("agree");
-    });
 
     it("rejects form with invalid first name", () => {
       const result = validateRegisterForm({ ...validForm, firstName: "J" });

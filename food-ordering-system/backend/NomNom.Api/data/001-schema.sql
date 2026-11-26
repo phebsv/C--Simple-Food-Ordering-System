@@ -29,6 +29,8 @@ CREATE TABLE IF NOT EXISTS menu_items (
 
 CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(64) COLLATE utf8mb4_0900_bin PRIMARY KEY,
+    -- Short, human-friendly number shown to customers (e.g. #0-01). The id stays the real key.
+    order_number BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     customer_id VARCHAR(64) COLLATE utf8mb4_0900_bin NOT NULL,
     customer_name VARCHAR(50) NOT NULL,
     customer_email VARCHAR(100) NOT NULL,
@@ -41,6 +43,7 @@ CREATE TABLE IF NOT EXISTS orders (
     delivery_notes VARCHAR(300),
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
+    UNIQUE KEY uq_orders_order_number (order_number),
     FOREIGN KEY (customer_id) REFERENCES users (id)
 ) ENGINE=InnoDB;
 

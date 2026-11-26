@@ -2,6 +2,7 @@ import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
 import type { Order } from "../../types";
+import { formatOrderNumber } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
 import "./OrderConfirmation.css";
 
@@ -29,8 +30,8 @@ export default function OrderConfirmation() {
 
           <dl className="confirmation-details">
             <div>
-              <dt>Order ID</dt>
-              <dd>{order.id}</dd>
+              <dt>Order No.</dt>
+              <dd>{formatOrderNumber(order)}</dd>
             </div>
             <div>
               <dt>Placed on</dt>

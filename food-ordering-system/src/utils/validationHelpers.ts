@@ -125,13 +125,7 @@ export function validateRegisterForm(data: {
   phone: string;
   password: string;
   confirmPassword: string;
-  agree: boolean;
 }): { valid: boolean; error?: string } {
-  // Check terms agreement first
-  if (!data.agree) {
-    return { valid: false, error: "Please agree to the Terms of Service and Privacy Policy." };
-  }
-
   // Validate first name
   const firstNameValidation = validateName(data.firstName, "First name");
   if (!firstNameValidation.valid) {
