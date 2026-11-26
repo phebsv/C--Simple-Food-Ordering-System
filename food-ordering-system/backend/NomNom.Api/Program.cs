@@ -49,6 +49,7 @@ builder.Services.AddAuthorization(AccessPolicies.Configure);
 builder.Services.AddSingleton<AccountService>();
 builder.Services.AddSingleton<IAccountService>(services => services.GetRequiredService<AccountService>());
 builder.Services.AddSingleton<IProfileService>(services => services.GetRequiredService<AccountService>());
+builder.Services.AddSingleton<IAdminUserService, AdminUserService>();
 builder.Services.AddSingleton<ICheckoutService, CheckoutService>();
 builder.Services.AddSingleton<ICustomerOrderService, CustomerOrderService>();
 builder.Services.AddSingleton<IMenuService, MenuService>();

@@ -13,6 +13,9 @@ internal sealed class ReviewService(IReviewRepository store, IOrderRepository or
     public async Task<IReadOnlyList<Review>> ListAsync(CancellationToken cancellationToken) =>
         await store.ListAsync(cancellationToken);
 
+    public async Task<IReadOnlyList<Review>> ListDeletedAsync(CancellationToken cancellationToken) =>
+        await store.ListDeletedAsync(cancellationToken);
+
     public async Task<Review> AddAsync(
         AccountIdentity actor, AddReviewRequest request, CancellationToken cancellationToken)
     {
@@ -63,6 +66,12 @@ internal sealed class ReviewService(IReviewRepository store, IOrderRepository or
     {
         if (!await store.DeleteAsync(id, cancellationToken))
             throw ApiError.NotFound("Review not found.");
+    }
+
+    public async Task RestoreAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await store.RestoreAsync(id, cancellationToken))
+            throw ApiError.NotFound("Deleted review not found.");
     }
 
     private static string Timestamp(DateTime value) =>

@@ -27,6 +27,11 @@ public sealed class OrdersController(
             : await customerOrders.ListAsync(actor, ct));
     }
 
+    [Authorize(Policy = AccessPolicies.Administrator)]
+    [HttpGet("deleted")]
+    public async Task<IActionResult> ListDeleted(CancellationToken ct) =>
+        Ok(await adminOrders.ListDeletedAsync(ct));
+
     [HttpGet("{id}")]
     public async Task<IActionResult> Get([FromRoute] string id, CancellationToken ct)
     {
@@ -43,4 +48,20 @@ public sealed class OrdersController(
     public async Task<IActionResult> UpdateStatus(
         [FromRoute] string id, [FromBody] UpdateOrderStatusRequest request, CancellationToken ct) =>
         Ok(await adminOrders.UpdateStatusAsync(id, request, ct));
+
+    [Authorize(Policy = AccessPolicies.Administrator)]
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete([FromRoute] string id, CancellationToken ct)
+    {
+        await adminOrders.DeleteAsync(id, ct);
+        return NoContent();
+    }
+
+    [Authorize(Policy = AccessPolicies.Administrator)]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore([FromRoute] string id, CancellationToken ct)
+    {
+        await adminOrders.RestoreAsync(id, ct);
+        return NoContent();
+    }
 }

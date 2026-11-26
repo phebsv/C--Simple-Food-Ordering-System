@@ -39,6 +39,21 @@ internal sealed class AdminOrderService(IOrderRepository orders) : IAdminOrderSe
         await orders.FindAsync(id, null, cancellationToken)
             ?? throw ApiError.NotFound("Order not found.");
 
+    public Task<IReadOnlyList<Order>> ListDeletedAsync(CancellationToken cancellationToken) =>
+        orders.ListDeletedAsync(cancellationToken);
+
+    public async Task DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await orders.SoftDeleteAsync(id, cancellationToken))
+            throw ApiError.NotFound("Order not found.");
+    }
+
+    public async Task RestoreAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await orders.RestoreAsync(id, cancellationToken))
+            throw ApiError.NotFound("Deleted order not found.");
+    }
+
     public async Task<Order> UpdateStatusAsync(
         string id, UpdateOrderStatusRequest request, CancellationToken cancellationToken)
     {

@@ -97,6 +97,15 @@ internal sealed class MenuService(IMenuRepository store) : IMenuService
             throw ApiError.NotFound("Menu item not found.");
     }
 
+    public async Task<IReadOnlyList<MenuItem>> ListDeletedAsync(CancellationToken cancellationToken) =>
+        await store.ListDeletedAsync(cancellationToken);
+
+    public async Task RestoreAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await store.RestoreAsync(id, cancellationToken))
+            throw ApiError.NotFound("Deleted menu item not found.");
+    }
+
     private static string CleanName(string? value)
     {
         var name = value?.Trim() ?? "";

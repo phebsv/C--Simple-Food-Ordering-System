@@ -10,4 +10,6 @@ public interface IMenuService
     Task<MenuItem> CreateAsync(CreateMenuItemRequest request, CancellationToken cancellationToken);
     Task<MenuItem> UpdateAsync(string id, UpdateMenuItemRequest request, CancellationToken cancellationToken);
     Task DeleteAsync(string id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<MenuItem>> ListDeletedAsync(CancellationToken cancellationToken);
+    Task RestoreAsync(string id, CancellationToken cancellationToken);
 }

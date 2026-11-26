@@ -1,3 +1,4 @@
+using System.Globalization;
 using NomNom.Api.Contracts;
 using NomNom.Api.Models;
 using NomNom.Api.Repositories;
@@ -6,7 +7,7 @@ namespace NomNom.Api.Services;
 
 public sealed record CheckoutDetails(string Name, string Phone, string Address, string Payment, string? Notes);
 
-internal sealed class CheckoutService(IOrderRepository orders) : ICheckoutService
+internal sealed class CheckoutService(IOrderRepository orders, TimeProvider clock) : ICheckoutService
 {
     public Task<Order> PlaceOrderAsync(AccountIdentity actor, CheckoutRequest request, CancellationToken ct)
     {
@@ -36,7 +37,51 @@ internal sealed class CheckoutService(IOrderRepository orders) : ICheckoutServic
 
         var delivery = new CheckoutDetails(name, phone, address, request.PaymentMethod,
             string.IsNullOrEmpty(notes) ? null : notes);
-        return orders.PlaceAsync(actor.UserId, delivery, expectedCart, ct);
+        return orders.PlaceAsync(
+            actor.UserId, snapshot => BuildOrder(actor.UserId, delivery, expectedCart, snapshot), ct);
+    }
+
+    private Order BuildOrder(
+        string customerId, CheckoutDetails delivery, IReadOnlyDictionary<string, int> expectedCart,
+        CheckoutSnapshot snapshot)
+    {
+        var lines = snapshot.Lines;
+        if (lines.Count == 0) throw ApiError.Invalid("Your cart is empty.");
+
+        foreach (var line in lines)
+        {
+            if (line.Available != true || line.Stock is null || line.Item.Quantity < 1 ||
+                line.Stock < line.Item.Quantity)
+                throw new ApiError(409,
+                    $"The requested quantity of {line.Item.Name} is unavailable. Review your cart.");
+        }
+
+        if (lines.Count != expectedCart.Count || lines.Any(line =>
+                !expectedCart.TryGetValue(line.Item.Id, out var quantity) || quantity != line.Item.Quantity))
+            throw new ApiError(409, "Your cart changed. Review it before placing your order.");
+
+        var total = lines.Sum(line => line.Item.Price * line.Item.Quantity);
+        if (total > 999_999_999_999.99m) throw ApiError.Invalid("The order total is too large.");
+
+        var now = DateTime.SpecifyKind(clock.GetUtcNow().UtcDateTime, DateTimeKind.Utc)
+            .ToString("yyyy-MM-dd'T'HH:mm:ss.ffffff'Z'", CultureInfo.InvariantCulture);
+        return new Order
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            CustomerId = customerId,
+            CustomerName = delivery.Name,
+            CustomerEmail = snapshot.Email,
+            CustomerPhone = delivery.Phone,
+            CustomerAddress = delivery.Address,
+            Items = lines.Select(line => line.Item).ToList(),
+            Subtotal = total,
+            Total = total,
+            Status = OrderStatus.Pending,
+            PaymentMethod = delivery.Payment,
+            DeliveryNotes = delivery.Notes,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
     }
 }
 

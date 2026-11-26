@@ -1,22 +1,24 @@
 # NomNom – Simple Food Ordering System
 
-React + TypeScript (Vite) frontend with a C# ASP.NET Core backend. Registration, login, and menu reads use MySQL.
+React + TypeScript (Vite) frontend with a C# ASP.NET Core backend. All application data uses the single MySQL `nomnom` database; `data/db.json` is only a legacy migration backup.
 
 ## Running locally
 
 Install the .NET 10 SDK, MySQL Server 8.0.21 or later, PowerShell 7, and Node.js 22.12 or later. Run the commands below from the `food-ordering-system` folder.
 
-### 1. Create the database and import the existing records
+### 1. Create or update the database and import existing records
 
-1. Stop the old API so the JSON source stays stable. Keep `backend/NomNom.Api/data/db.json` as the migration backup.
-2. In MySQL Workbench, open your local administrative connection. Open `backend/NomNom.Api/data/001-schema.sql` and use the lightning bolt that executes the entire script.
-3. Generate the import script in PowerShell. It prints the path to a temporary SQL file containing your local JSON records.
+1. In MySQL Workbench, use your local administrative connection to execute `backend/NomNom.Api/data/001-schema.sql`.
+2. For an existing installation, execute `backend/NomNom.Api/data/003-soft-delete.sql`. This idempotent migration adds soft-delete and restoration fields without removing existing records.
+3. Keep `backend/NomNom.Api/data/db.json` as a migration backup. If you intentionally need to import legacy records, stop the old API so the JSON source stays stable, then generate the import script in PowerShell. The command prints the path to a temporary SQL file containing the local JSON records.
 
 ```powershell
 pwsh -NoProfile -File ./backend/NomNom.Api/data/New-MySqlImport.ps1
 ```
 
-4. Open the generated SQL file in a new Workbench tab and execute the entire script. Review Action Output for errors and compare the final counts with your JSON backup. The import runs in a transaction and skips IDs already present. If it reports a duplicate email or missing reference, resolve the source conflict before rerunning it. Keep the generated file local because it contains account and order data.
+4. Open the generated SQL file in a new Workbench tab and execute the entire script. Review Action Output for errors and compare the final counts with your JSON backup. The import runs in a transaction and skips IDs already present. If it reports a duplicate email or missing reference, resolve the source conflict before rerunning it. Keep the generated file local because it contains account and order data. Do not run a legacy import over live data without reviewing the records and taking a backup.
+
+The admin API archives menu items, orders, users, and reviews instead of permanently deleting them. Each has a `GET .../deleted` listing and a `POST .../{id}/restore` endpoint; the matching `DELETE` endpoint archives the record. Customer cart removal/clear also archives transient cart rows; adding the same item again reactivates that customer's prior cart row.
 
 ### 2. Create the API's local MySQL account
 
@@ -25,8 +27,7 @@ Run this in a new Workbench SQL tab using the same administrative connection. Co
 ```sql
 CREATE USER IF NOT EXISTS 'nomnom_app'@'localhost'
     IDENTIFIED BY RANDOM PASSWORD REQUIRE SSL;
-GRANT SELECT, INSERT ON nomnom.users TO 'nomnom_app'@'localhost';
-GRANT SELECT ON nomnom.menu_items TO 'nomnom_app'@'localhost';
+GRANT SELECT, INSERT, UPDATE, DELETE ON nomnom.* TO 'nomnom_app'@'localhost';
 SHOW GRANTS FOR 'nomnom_app'@'localhost';
 ```
 
@@ -59,6 +60,9 @@ In a second terminal, run `npm ci` and `npm run dev`. Vite uses port `5173` and 
 | `npm run build`    | Type-check and build for production  |
 | `npm run lint`     | Run ESLint                           |
 | `npm test`         | Run the unit tests (Vitest)          |
+| `dotnet run --project backend/NomNom.Api.IntegrationTests` | Run the MySQL order-total and archive/restore integration checks |
+
+The integration check requires `NOMNOM_TEST_CONNECTION_STRING` to point to a database with the schema and migration applied. It accepts `nomnom_test` by default. To explicitly run against the local `nomnom` database, also set `NOMNOM_TEST_ALLOW_NOMNOM=1`; the check creates uniquely named fixture rows and removes them in a `finally` cleanup.
 
 ## Project structure
 
@@ -67,5 +71,6 @@ In a second terminal, run `npm ci` and `npm run dev`. Vite uses port `5173` and 
 - `src/context` – `AuthContext` (who is logged in), `CartContext`, `AdminContext` (admin data)
 - `src/services/api.ts` – the single HTTP client used by the whole frontend
 - `backend/NomNom.Api/` – the ASP.NET Core API, MySQL storage, and migration scripts
+- `backend/NomNom.Api/Repositories/` – MySQL data access; menu, user, order, and review deletion is archived and restorable
 - `src/types.ts` – shared data types
 - `src/utils` – validation, formatting, storage and order helpers
