@@ -1,5 +1,6 @@
 using System.Globalization;
 using MySqlConnector;
+using NomNom.Api.Contracts;
 using NomNom.Api.Models;
 using NomNom.Api.Repositories;
 using NomNom.Api.Services;
@@ -42,20 +43,16 @@ try
     await SeedAsync(dataSource, userId, email, menuIdOne, menuIdTwo);
     fixturesSeeded = true;
 
-    var expectedCart = new Dictionary<string, int>(StringComparer.Ordinal)
-    {
-        [menuIdOne] = 2,
-        [menuIdTwo] = 3
-    };
-    var order = await orderRepository.PlaceAsync(
-        userId,
-        new CheckoutDetails(
+    var checkout = new CheckoutService(orderRepository, TimeProvider.System);
+    var order = await checkout.PlaceOrderAsync(
+        new AccountIdentity(userId, false),
+        new CheckoutRequest(
             "Integration Customer",
             "09171234567",
             "100 Test Street, Test City",
             "cash",
-            null),
-        expectedCart,
+            null,
+            [new CheckoutItemRequest(menuIdOne, 2), new CheckoutItemRequest(menuIdTwo, 3)]),
         CancellationToken.None);
     orderId = order.Id;
 
