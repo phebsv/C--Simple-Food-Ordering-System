@@ -40,11 +40,14 @@ internal interface IMenuRepository
     Task<bool> RestoreAsync(string id, CancellationToken cancellationToken);
 }
 
+internal sealed record CheckoutLine(string CartId, OrderItem Item, bool? Available, int? Stock);
+
+internal sealed record CheckoutSnapshot(string Email, IReadOnlyList<CheckoutLine> Lines);
+
 internal interface IOrderRepository
 {
     Task<Order> PlaceAsync(
-        string customerId, CheckoutDetails delivery, IReadOnlyDictionary<string, int> expectedCart,
-        CancellationToken ct);
+        string customerId, Func<CheckoutSnapshot, Order> buildOrder, CancellationToken ct);
     Task<IReadOnlyList<Order>> ListAsync(string customerId, CancellationToken ct);
     Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken ct);
     Task<IReadOnlyList<Order>> ListDeletedAsync(CancellationToken ct);
