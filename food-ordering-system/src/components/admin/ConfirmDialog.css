@@ -18,7 +18,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
   max-width: 400px;
   width: 90%;
-  animation: slideUp 0.3s ease;
+  animation: confirm-dialog-in 0.25s ease;
 }
 
 .confirm-dialog-header {
@@ -95,4 +95,16 @@
 .confirm-dialog-confirm:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Own animation, so the dialog doesn't depend on keyframes from other pages. */
+@keyframes confirm-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

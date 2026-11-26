@@ -4,9 +4,10 @@ import AdminHeader from "../../components/admin/AdminHeader";
 import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 import { useAdmin } from "../../context/AdminContext";
 import type { Order, OrderStatus } from "../../types";
-import { getOrderTime, sortNewestFirst } from "../../utils/orderHelpers";
+import { formatOrderNumber, getOrderTime, matchesOrderNumber, sortNewestFirst } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
 import "./AdminOrders.css";
 
@@ -76,6 +77,7 @@ export default function AdminOrders() {
             .toLowerCase();
           const matchesSearch =
             !query ||
+            matchesOrderNumber(order, query) ||
             order.id.toLowerCase().includes(query) ||
             order.customerName.toLowerCase().includes(query) ||
             order.customerEmail.toLowerCase().includes(query) ||
@@ -168,7 +170,7 @@ export default function AdminOrders() {
           <div className="admin-search-control">
             <input
               type="text"
-              placeholder="Search by Order ID or Customer Name..."
+              placeholder="Search by order no. (e.g. 0-01) or customer name..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="admin-search-input"
@@ -213,7 +215,7 @@ export default function AdminOrders() {
             <table className="orders-table">
               <thead>
                 <tr>
-                  <th>Order ID</th>
+                  <th>Order No.</th>
                   <th>Customer</th>
                   <th>Items</th>
                   <th>Total</th>
@@ -225,7 +227,13 @@ export default function AdminOrders() {
               <tbody>
                 {paginatedOrders.map((order) => (
                   <tr key={order.id}>
-                    <td className="order-id">#{displayValue(order.id)}</td>
+                    <td className="order-id">
+                      {formatOrderNumber(order)}
+                      {/* Full ID stays visible to admins for tracking; customers only see the short number. */}
+                      <span className="order-full-id" title={order.id}>
+                        {order.id}
+                      </span>
+                    </td>
                     <td>
                       <div className="customer-info">
                         <div>{displayValue(order.customerName)}</div>
@@ -274,37 +282,15 @@ export default function AdminOrders() {
 
             {totalPages > 1 && (
               <div className="orders-pagination">
-                <button
-                  className="pagination-btn"
-                  onClick={() => setPage(1)}
-                  disabled={currentPage === 1}
-                >
-                  First
-                </button>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                >
-                  Prev
-                </button>
-                <span className="pagination-info">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                >
-                  Next
-                </button>
-                <button
-                  className="pagination-btn"
-                  onClick={() => setPage(totalPages)}
-                  disabled={currentPage === totalPages}
-                >
-                  Last
-                </button>
+                <Pagination
+                  page={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setPage}
+                  firstItem={(currentPage - 1) * PAGE_SIZE + 1}
+                  lastItem={(currentPage - 1) * PAGE_SIZE + paginatedOrders.length}
+                  totalItems={filteredOrders.length}
+                  itemLabel="orders"
+                />
               </div>
             )}
           </div>
@@ -314,11 +300,25 @@ export default function AdminOrders() {
         {selectedOrder && (
           <AdminModal
             isOpen={isDetailsOpen}
-            title={`Order #${displayValue(selectedOrder.id)}`}
+            title={`Order ${formatOrderNumber(selectedOrder)}`}
             onClose={() => setIsDetailsOpen(false)}
             size="large"
           >
             <div className="order-details">
+              <div className="details-section">
+                <h3>Order Reference</h3>
+                <div className="details-grid">
+                  <div className="detail-item">
+                    <label>Order No.</label>
+                    <p>{formatOrderNumber(selectedOrder)}</p>
+                  </div>
+                  <div className="detail-item">
+                    <label>Full Order ID</label>
+                    <p className="order-full-id-detail">{selectedOrder.id}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="details-section">
                 <h3>Customer Information</h3>
                 <div className="details-grid">
@@ -377,10 +377,6 @@ export default function AdminOrders() {
               <div className="details-section">
                 <h3>Order Summary</h3>
                 <div className="summary-items">
-                  <div className="summary-row">
-                    <span>Subtotal</span>
-                    <span>{formatPricePHP(selectedOrder.subtotal)}</span>
-                  </div>
                   <div className="summary-row total">
                     <span>Total</span>
                     <span>{formatPricePHP(selectedOrder.total)}</span>

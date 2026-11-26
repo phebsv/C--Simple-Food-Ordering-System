@@ -50,16 +50,30 @@
   color: var(--text);
 }
 
+/* Inputs, the address box and read-only values all share one box size, so every
+   field lines up whether you are viewing or editing. */
 .profile-form-group input,
-.profile-form-group textarea {
+.profile-form-group textarea,
+.profile-value {
+  display: block;
   width: 100%;
-  padding: 12px 16px;
+  min-height: 48px;
+  margin: 0;
+  padding: 11px 16px;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   font-size: 14px;
+  line-height: 1.5;
   font-family: inherit;
-  transition: all 0.2s;
+  color: var(--text);
   box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* The address grows with its text (set in Profile.tsx) instead of being a big box. */
+.profile-form-group textarea {
+  resize: none;
+  overflow: hidden;
 }
 
 .profile-form-group input:focus,
@@ -76,12 +90,14 @@
 }
 
 .profile-value {
-  padding: 12px 16px;
   background: var(--pink);
-  border-radius: 8px;
-  color: var(--text);
-  line-height: 1.6;
-  word-wrap: break-word;
+  border-color: transparent;
+  overflow-wrap: anywhere;
+}
+
+.profile-value-empty {
+  color: var(--muted);
+  font-style: italic;
 }
 
 .profile-hint {

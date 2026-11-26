@@ -1,0 +1,81 @@
+/* Shared page controls (My Orders, Cart, Menu, admin Orders). */
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.pager-summary {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #888080);
+}
+
+.pager-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.pager-btn {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 12px;
+  border: 2px solid #e6dada;
+  border-radius: 10px;
+  background: var(--white, #fff);
+  color: var(--text, #1a0a0a);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.pager-btn:hover:not(:disabled) {
+  border-color: var(--red, #c8000a);
+  color: var(--red, #c8000a);
+}
+
+.pager-btn:focus-visible {
+  outline: 3px solid rgba(200, 0, 10, 0.35);
+  outline-offset: 2px;
+}
+
+.pager-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.pager-number {
+  padding: 0;
+}
+
+.pager-current,
+.pager-current:hover:not(:disabled) {
+  background: var(--red, #c8000a);
+  border-color: var(--red, #c8000a);
+  color: var(--white, #fff);
+}
+
+.pager-gap {
+  padding: 0 4px;
+  color: var(--muted, #888080);
+  font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  .pager {
+    justify-content: center;
+  }
+
+  .pager-summary {
+    width: 100%;
+    text-align: center;
+  }
+}

@@ -40,6 +40,8 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
             ("@status", order.Status.ToString()), ("@payment", order.PaymentMethod),
             ("@notes", order.DeliveryNotes), ("@createdAt", createdAt), ("@updatedAt", updatedAt));
         await insert.ExecuteNonQueryAsync(ct);
+        // MySQL picked the next order_number (AUTO_INCREMENT); keep it for the response.
+        order = order with { OrderNumber = insert.LastInsertedId };
 
         for (var index = 0; index < lines.Count; index++)
         {
@@ -181,7 +183,8 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
         await using var command = Command(connection, null, """
             SELECT o.id, o.customer_id, o.customer_name, o.customer_email, o.customer_phone, o.customer_address,
                    o.subtotal, o.total, o.status, o.payment_method, o.delivery_notes, o.created_at, o.updated_at,
-                   i.menu_id, i.name, i.description, i.price, i.category, i.quantity
+                   i.menu_id, i.name, i.description, i.price, i.category, i.quantity,
+                   o.order_number
             FROM orders o
             LEFT JOIN order_items i ON i.order_id = o.id
             WHERE (@customerId IS NULL OR o.customer_id = @customerId)
@@ -200,6 +203,7 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
                 order = new Order
                 {
                     Id = id,
+                    OrderNumber = Convert.ToInt64(rows.GetValue(19), CultureInfo.InvariantCulture),
                     CustomerId = rows.GetString(1),
                     CustomerName = rows.GetString(2),
                     CustomerEmail = rows.GetString(3),

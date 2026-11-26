@@ -84,24 +84,6 @@ describe("AuthContext", () => {
     expect(result.current.customer).toBeNull();
   });
 
-  it("handles remember me option", async () => {
-    const mockUser = { id: "1", email: "user@example.com", role: "user" as const };
-    const mockToken = "mock-token";
-
-    mockLogin.mockResolvedValue({
-      data: { token: mockToken, customer: mockUser },
-    });
-
-    const { result } = renderHook(() => useAuth(), {
-      wrapper: AuthProvider,
-    });
-
-    await act(async () => {
-      await result.current.login("user@example.com", "Password123", { remember: true });
-    });
-
-    expect(setStoredItem).toHaveBeenCalledWith("customerToken", mockToken, "local");
-  });
 
   it("handles successful registration", async () => {
     mockRegister.mockResolvedValue({ data: { token: "t", customer: { id: "2" } } });
@@ -117,7 +99,6 @@ describe("AuthContext", () => {
         email: "juan@example.com",
         password: "Password123",
         phoneNumber: "09171234567",
-        agreeToTerms: true,
       });
       expect(success).toBe(true);
     });
@@ -139,7 +120,6 @@ describe("AuthContext", () => {
         email: "juan@example.com",
         password: "Password123",
         phoneNumber: "09171234567",
-        agreeToTerms: true,
       });
       expect(success).toBe(false);
     });

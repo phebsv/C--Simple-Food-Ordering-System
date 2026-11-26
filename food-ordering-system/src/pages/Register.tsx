@@ -17,7 +17,6 @@ export default function Register() {
   const [phone, setPhone] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
-  const [agree, setAgree] = useState<boolean>(false);
   const [localError, setLocalError] = useState<string>("");
 
   const { register, loading, error } = useAuth();
@@ -39,7 +38,6 @@ export default function Register() {
       phone,
       password,
       confirmPassword,
-      agree,
     });
 
     if (!validation.valid) {
@@ -52,7 +50,6 @@ export default function Register() {
       email: emailTrimmed,
       password,
       phoneNumber: phoneDigits,
-      agreeToTerms: agree,
     });
 
     if (success) {
@@ -150,18 +147,6 @@ export default function Register() {
                 Icon={LockIcon}
               />
 
-              <label className="register-agree">
-                <input
-                  type="checkbox"
-                  checked={agree}
-                  onChange={(e) => setAgree(e.target.checked)}
-                />
-                <span>
-                  I agree to the{" "}
-                  <button type="button">Terms of Service</button> and{" "}
-                  <button type="button">Privacy Policy</button>
-                </span>
-              </label>
 
               {displayError && <p className="register-error">{displayError}</p>}
 
