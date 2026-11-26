@@ -15,7 +15,8 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
         await using var transaction = await connection.BeginTransactionAsync(IsolationLevel.ReadCommitted, ct);
 
         // Serialize checkouts for this account, even if its cart changes during a request.
-        await using var account = Command(connection, transaction, "SELECT email FROM users WHERE id = @id FOR UPDATE;",
+        await using var account = Command(connection, transaction,
+            "SELECT email FROM users WHERE id = @id AND is_deleted = FALSE FOR UPDATE;",
             ("@id", customerId));
         var email = (string?)await account.ExecuteScalarAsync(ct) ?? throw ApiError.Unauthorized();
         var cart = await ReadCheckoutCartAsync(connection, transaction, customerId, ct);
@@ -69,7 +70,7 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
             await using var stock = Command(connection, transaction, """
                 UPDATE menu_items
                 SET available = stock > @quantity, stock = stock - @quantity, last_updated = @now
-                WHERE id = @menuId;
+                WHERE id = @menuId AND is_deleted = FALSE;
                 """, ("@menuId", item.Id), ("@quantity", item.Quantity), ("@now", now));
             await stock.ExecuteNonQueryAsync(ct);
             await MySqlCartRepository.DeleteAsync(connection, transaction, customerId, cartId, ct);
@@ -87,7 +88,7 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
             SELECT c.id, m.id, m.name, m.description, m.price, m.category, c.quantity, m.available, m.stock
             FROM cart_items c
             JOIN menu_items m ON m.id = c.menu_id
-            WHERE c.customer_id = @customerId
+            WHERE c.customer_id = @customerId AND m.is_deleted = FALSE
             ORDER BY c.menu_id
             FOR UPDATE;
             """, ("@customerId", customerId));
@@ -119,8 +120,33 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
 
     public Task<IReadOnlyList<Order>> ListAllAsync(CancellationToken ct) => ReadAsync(null, null, ct);
 
+    public Task<IReadOnlyList<Order>> ListDeletedAsync(CancellationToken ct) =>
+        ReadAsync(null, null, ct, includeDeleted: true);
+
     public async Task<Order?> FindAsync(string orderId, string? customerId, CancellationToken ct) =>
         (await ReadAsync(customerId, orderId, ct)).SingleOrDefault();
+
+    public async Task<bool> SoftDeleteAsync(string orderId, CancellationToken ct)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(ct);
+        await using var command = Command(connection, null, """
+            UPDATE orders
+            SET is_deleted = TRUE, deleted_at = UTC_TIMESTAMP(6)
+            WHERE id = @id AND is_deleted = FALSE;
+            """, ("@id", orderId));
+        return await command.ExecuteNonQueryAsync(ct) == 1;
+    }
+
+    public async Task<bool> RestoreAsync(string orderId, CancellationToken ct)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(ct);
+        await using var command = Command(connection, null, """
+            UPDATE orders
+            SET is_deleted = FALSE, deleted_at = NULL
+            WHERE id = @id AND is_deleted = TRUE;
+            """, ("@id", orderId));
+        return await command.ExecuteNonQueryAsync(ct) == 1;
+    }
 
     // Administrator workflows supply an expected state after applying their transition rules.
     public async Task<bool> TryUpdateStatusAsync(string orderId, OrderStatus expected, OrderStatus next, CancellationToken ct)
@@ -128,7 +154,7 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
         await using var connection = await dataSource.OpenConnectionAsync(ct);
         await using var command = Command(connection, null, """
             UPDATE orders SET status = @next, updated_at = @now
-            WHERE id = @id AND status = @expected;
+            WHERE id = @id AND status = @expected AND is_deleted = FALSE;
             """, ("@id", orderId), ("@expected", expected.ToString()), ("@next", next.ToString()),
             ("@now", clock.GetUtcNow().UtcDateTime));
         return await command.ExecuteNonQueryAsync(ct) == 1;
@@ -142,7 +168,7 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
 
         await using var cancel = Command(connection, transaction, """
             UPDATE orders SET status = 'Cancelled', updated_at = @now
-            WHERE id = @id AND status IN ('Pending', 'Preparing');
+            WHERE id = @id AND status IN ('Pending', 'Preparing') AND is_deleted = FALSE;
             """, ("@id", orderId), ("@now", now));
         if (await cancel.ExecuteNonQueryAsync(ct) != 1) return false;
 
@@ -165,7 +191,8 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
         return true;
     }
 
-    private async Task<IReadOnlyList<Order>> ReadAsync(string? customerId, string? orderId, CancellationToken ct)
+    private async Task<IReadOnlyList<Order>> ReadAsync(
+        string? customerId, string? orderId, CancellationToken ct, bool includeDeleted = false)
     {
         await using var connection = await dataSource.OpenConnectionAsync(ct);
         await using var command = Command(connection, null, """
@@ -176,8 +203,9 @@ internal sealed class MySqlOrderRepository(MySqlDataSource dataSource, TimeProvi
             LEFT JOIN order_items i ON i.order_id = o.id
             WHERE (@customerId IS NULL OR o.customer_id = @customerId)
               AND (@orderId IS NULL OR o.id = @orderId)
+              AND o.is_deleted = @includeDeleted
             ORDER BY o.created_at DESC, o.id, i.line_number;
-            """, ("@customerId", customerId), ("@orderId", orderId));
+            """, ("@customerId", customerId), ("@orderId", orderId), ("@includeDeleted", includeDeleted));
         await using var rows = await command.ExecuteReaderAsync(ct);
         var orders = new List<Order>();
         Order? order = null;
