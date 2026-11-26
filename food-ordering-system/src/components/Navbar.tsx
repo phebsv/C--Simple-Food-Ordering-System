@@ -1,28 +1,30 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import C from "../constants/colors";
 import NomNomLogo from "./NomNomLogo";
 import { useCart } from "../context/CartContext";
 import { useAuth } from "../context/AuthContext";
+import "./Navbar.css";
 
 interface NavbarProps {
   title: string;
   showNavLinks?: boolean;
 }
 
-const linkStyle = { textDecoration: "none", color: C.text, fontWeight: 600, fontSize: 14 };
-
-const NAV_LINKS = [
-  { to: "/dashboard", label: "Home" },
-  { to: "/menu", label: "Menu" },
-  { to: "/cart", label: "Cart" },
-  { to: "/my-orders", label: "Orders" },
-  { to: "/profile", label: "Profile" },
+// `alsoActiveOn` keeps a tab highlighted on the pages that belong to it,
+// e.g. Checkout is part of the Cart flow.
+const NAV_LINKS: { to: string; label: string; alsoActiveOn: string[] }[] = [
+  { to: "/dashboard", label: "Home", alsoActiveOn: [] },
+  { to: "/menu", label: "Menu", alsoActiveOn: [] },
+  { to: "/cart", label: "Cart", alsoActiveOn: ["/checkout"] },
+  { to: "/my-orders", label: "Orders", alsoActiveOn: ["/order-confirmation"] },
+  { to: "/profile", label: "Profile", alsoActiveOn: [] },
 ];
 
 function NavLinks() {
   const { itemCount: cartItemCount } = useCart();
   const { logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
   const handleLogout = () => {
     logout();
@@ -30,56 +32,32 @@ function NavLinks() {
   };
 
   return (
-    <nav style={{ display: "flex", alignItems: "center", gap: "2rem" }}>
-      {NAV_LINKS.map(({ to, label }) =>
-        to === "/cart" ? (
+    <nav className="nav-links" aria-label="Main">
+      {NAV_LINKS.map(({ to, label, alsoActiveOn }) => {
+        const active = pathname === to || alsoActiveOn.includes(pathname);
+        const isCart = to === "/cart";
+        return (
           <Link
             key={to}
             to={to}
-            style={{ ...linkStyle, display: "inline-flex", alignItems: "center", gap: 6 }}
-            aria-label={`Cart with ${cartItemCount} item${cartItemCount === 1 ? "" : "s"}`}
+            className={`nav-link${active ? " nav-link-active" : ""}`}
+            aria-current={active ? "page" : undefined}
+            aria-label={
+              isCart
+                ? `Cart with ${cartItemCount} item${cartItemCount === 1 ? "" : "s"}`
+                : undefined
+            }
           >
             {label}
-            {cartItemCount > 0 && (
-              <span
-                style={{
-                  minWidth: 20,
-                  height: 20,
-                  padding: "0 6px",
-                  borderRadius: 999,
-                  background: "var(--red)",
-                  color: "white",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  fontWeight: 800,
-                  lineHeight: 1,
-                }}
-              >
+            {isCart && cartItemCount > 0 && (
+              <span className="nav-cart-badge">
                 {cartItemCount > 99 ? "99+" : cartItemCount}
               </span>
             )}
           </Link>
-        ) : (
-          <Link key={to} to={to} style={linkStyle}>
-            {label}
-          </Link>
-        ),
-      )}
-      <button
-        onClick={handleLogout}
-        style={{
-          background: "var(--red)",
-          color: "white",
-          border: "none",
-          padding: "8px 16px",
-          borderRadius: "6px",
-          cursor: "pointer",
-          fontWeight: 600,
-          fontSize: 14,
-        }}
-      >
+        );
+      })}
+      <button type="button" className="nav-logout" onClick={handleLogout}>
         Logout
       </button>
     </nav>
