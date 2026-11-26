@@ -40,7 +40,8 @@ internal sealed class CartService(ICartRepository store, IMenuRepository menu) :
                 Image = menuItem.Image ?? "",
                 Quantity = 1
             };
-            if (await store.TryInsertAsync(line, cancellationToken)) return ToLine(line);
+            var insertedOrRestored = await store.TryInsertOrRestoreAsync(line, cancellationToken);
+            if (insertedOrRestored is not null) return ToLine(insertedOrRestored);
 
             // A parallel request added the same item first, so add to that line instead.
             existing = await store.FindByMenuAsync(actor.UserId, menuId, cancellationToken)
