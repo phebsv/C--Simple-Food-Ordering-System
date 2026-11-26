@@ -28,3 +28,10 @@ public interface IProfileService
     Task ChangePasswordAsync(
         AccountIdentity actor, string userId, ChangePasswordRequest request, CancellationToken cancellationToken);
 }
+
+public interface IAdminUserService
+{
+    Task<IReadOnlyList<DeletedUser>> ListDeletedAsync(AccountIdentity actor, CancellationToken cancellationToken);
+    Task DeleteAsync(AccountIdentity actor, string userId, CancellationToken cancellationToken);
+    Task RestoreAsync(AccountIdentity actor, string userId, CancellationToken cancellationToken);
+}
