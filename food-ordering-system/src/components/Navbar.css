@@ -1,0 +1,91 @@
+/* Customer navigation links: hover, pressed and "you are here" states. */
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--text, #1a0a0a);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s, transform 0.1s;
+}
+
+.nav-link:hover {
+  background: var(--pink, #fae8e8);
+  color: var(--red, #c8000a);
+}
+
+/* Short "pressed" feedback when clicked. */
+.nav-link:active {
+  transform: scale(0.95);
+}
+
+.nav-link:focus-visible {
+  outline: 3px solid rgba(200, 0, 10, 0.35);
+  outline-offset: 2px;
+}
+
+/* The page you are on. */
+.nav-link-active,
+.nav-link-active:hover {
+  background: var(--pink, #fae8e8);
+  color: var(--red, #c8000a);
+  font-weight: 800;
+}
+
+.nav-link-active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--red, #c8000a);
+}
+
+.nav-cart-badge {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--red, #c8000a);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.nav-logout {
+  margin-left: 0.75rem;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--red, #c8000a);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.nav-logout:hover {
+  background: var(--red-dark, #9e0008);
+}
+
+.nav-logout:active {
+  transform: scale(0.95);
+}
