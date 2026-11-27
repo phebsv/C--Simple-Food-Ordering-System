@@ -326,12 +326,8 @@
   display: flex;
   gap: 16px;
   align-items: center;
-  font-size: 13px;
+  font-size: 15px;
   flex-shrink: 0;
-}
-
-.item-price {
-  color: #999;
 }
 
 .item-subtotal {
@@ -356,7 +352,8 @@
 
 .summary-row.total {
   border-top: 2px solid #e0e0e0;
-  padding-top: 12px;
+  padding-top: 7px;
+  padding-inline: 10px;
   margin-top: 12px;
   font-weight: 700;
   font-size: 16px;
@@ -426,13 +423,13 @@
 }
 
 /* ==================== ACTION BUTTONS ==================== */
-.details-actions {
+.order-details .details-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #e0e0e0;
+  margin-top: 1px;
+  padding-top: 1px;
+  border-top: none;
 }
 
 .primary-btn {

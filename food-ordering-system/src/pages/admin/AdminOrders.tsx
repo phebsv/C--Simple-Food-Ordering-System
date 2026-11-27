@@ -361,9 +361,6 @@ export default function AdminOrders() {
                           <span className="item-qty">x{item.quantity || 0}</span>
                         </div>
                         <div className="item-prices">
-                          <span className="item-price">
-                            {formatPricePHP(item.price)} each
-                          </span>
                           <span className="item-subtotal">
                             {formatPricePHP(item.price * item.quantity)}
                           </span>
@@ -377,10 +374,6 @@ export default function AdminOrders() {
               <div className="details-section">
                 <h3>Order Summary</h3>
                 <div className="summary-items">
-                  <div className="summary-row">
-                    <span>Subtotal</span>
-                    <span>{formatPricePHP(selectedOrder.subtotal)}</span>
-                  </div>
                   <div className="summary-row total">
                     <span>Total</span>
                     <span>{formatPricePHP(selectedOrder.total)}</span>
