@@ -27,7 +27,7 @@ interface AdminContextType {
 
   orders: Order[];
   fetchOrders: (options?: FetchOptions) => Promise<void>;
-  updateOrderStatus: (id: string, status: OrderStatus) => Promise<void>;
+  updateOrderStatus: (id: string, status: OrderStatus) => Promise<Order>;
   cancelOrder: (id: string) => Promise<void>;
 
   inventoryItems: InventoryItem[];
@@ -151,6 +151,7 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   const updateOrderStatus = useCallback(async (id: string, status: OrderStatus) => {
     const updated = await api.updateOrderStatus(id, status);
     setOrders((prev) => prev.map((o) => (o.id === id ? updated : o)));
+    return updated;
   }, []);
 
   const cancelOrder = useCallback(

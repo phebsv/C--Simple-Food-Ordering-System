@@ -4,11 +4,15 @@ import { useNavigate } from "react-router-dom";
 import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 import { useAdmin } from "../../context/AdminContext";
 import type { AdminProfile } from "../../types";
 import { formatOrderNumber, matchesOrderNumber, sortNewestFirst } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
+import { usePagination } from "../../utils/usePagination";
 import "./AdminDashboard.css";
+
+const PAGE_SIZE = 10;
 
 function AdminDashboard() {
   const navigate = useNavigate();
@@ -112,9 +116,13 @@ function AdminDashboard() {
           status.includes(searchValue) ||
           date.includes(searchValue)
         );
-      })
-      .slice(0, 10);
+      });
   }, [ordersList, searchTerm]);
+  const recentOrdersPagination = usePagination(
+    recentOrders,
+    PAGE_SIZE,
+    searchTerm,
+  );
 
   if (loading) {
     return (
@@ -300,7 +308,7 @@ function AdminDashboard() {
                 </thead>
 
                 <tbody>
-                  {recentOrders.map((order) => (
+                  {recentOrdersPagination.pageItems.map((order) => (
                     <tr key={order.id}>
                       <td className="order-id" title={`Full Order ID: ${order.id}`}>
                         {formatOrderNumber(order)}
@@ -327,6 +335,15 @@ function AdminDashboard() {
               </table>
             )}
           </div>
+          <Pagination
+            page={recentOrdersPagination.page}
+            totalPages={recentOrdersPagination.totalPages}
+            onPageChange={recentOrdersPagination.setPage}
+            firstItem={recentOrdersPagination.firstItem}
+            lastItem={recentOrdersPagination.lastItem}
+            totalItems={recentOrdersPagination.totalItems}
+            itemLabel="orders"
+          />
         </div>
       </main>
     </div>

@@ -84,6 +84,7 @@
   line-height: 1.2;
   overflow-wrap: anywhere;
   text-transform: uppercase;
+  transform: translateX(8px);
 }
 
 .stat-content {
@@ -91,6 +92,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center; 
   gap: 4px;
 }
 
@@ -396,6 +399,7 @@
   .stat-icon {
     max-width: 58px;
     font-size: 10px;
+    padding-left: 10px;
   }
 
   .stat-value {

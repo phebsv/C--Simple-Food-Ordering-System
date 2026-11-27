@@ -290,7 +290,7 @@ export default function AdminMenu() {
                       Delete
                     </button>
                     <button
-                      className={`action-btn toggle-btn ${item.available ? "available-btn" : "unavailable-btn"}`}
+                      className={`action-btn toggle-btn ${item.available ? "unavailable-btn" : "available-btn"}`}
                       onClick={() => handleToggleAvailability(item.id)}
                       disabled={
                         actionLoading ||

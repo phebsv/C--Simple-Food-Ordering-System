@@ -6,9 +6,11 @@ import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import Pagination from "../../components/Pagination";
 import { useAdmin } from "../../context/AdminContext";
+import { getErrorMessage } from "../../services/api";
 import type { Order, OrderStatus } from "../../types";
 import { formatOrderNumber, getOrderTime, matchesOrderNumber, sortNewestFirst } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
+import { usePagination } from "../../utils/usePagination";
 import "./AdminOrders.css";
 
 type FilterStatus = OrderStatus | "All";
@@ -42,14 +44,11 @@ export default function AdminOrders() {
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("All");
-  const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<{
     isOpen: boolean;
     orderId?: string;
-    action?: "cancel" | "status";
-    newStatus?: OrderStatus;
   }>({ isOpen: false });
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -91,12 +90,11 @@ export default function AdminOrders() {
     );
   }, [orders, debouncedSearchQuery, filterStatus]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const paginatedOrders = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE;
-    return filteredOrders.slice(start, start + PAGE_SIZE);
-  }, [filteredOrders, currentPage]);
+  const pagination = usePagination(
+    filteredOrders,
+    PAGE_SIZE,
+    JSON.stringify([debouncedSearchQuery, filterStatus]),
+  );
 
   // ==================== HANDLERS ====================
   const handleOpenDetails = (order: Order) => {
@@ -104,20 +102,23 @@ export default function AdminOrders() {
     setIsDetailsOpen(true);
   };
 
-  const handleUpdateStatus = (orderId: string, newStatus: OrderStatus) => {
-    setConfirmDialog({
-      isOpen: true,
-      orderId,
-      action: "status",
-      newStatus,
-    });
+  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      setActionLoading(true);
+      setError(null);
+      const updatedOrder = await updateOrderStatus(orderId, newStatus);
+      setSelectedOrder(updatedOrder);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update order status."));
+    } finally {
+      setActionLoading(false);
+    }
   };
 
   const handleCancelOrder = (orderId: string) => {
     setConfirmDialog({
       isOpen: true,
       orderId,
-      action: "cancel",
     });
   };
 
@@ -126,20 +127,14 @@ export default function AdminOrders() {
 
     try {
       setActionLoading(true);
-      if (confirmDialog.action === "status" && confirmDialog.newStatus) {
-        await updateOrderStatus(confirmDialog.orderId, confirmDialog.newStatus);
-        setSelectedOrder(
-          orders.find((o) => o.id === confirmDialog.orderId) || null,
-        );
-      } else if (confirmDialog.action === "cancel") {
-        await cancelOrder(confirmDialog.orderId);
-        if (selectedOrder?.id === confirmDialog.orderId) {
-          setIsDetailsOpen(false);
-        }
+      setError(null);
+      await cancelOrder(confirmDialog.orderId);
+      if (selectedOrder?.id === confirmDialog.orderId) {
+        setIsDetailsOpen(false);
       }
       setConfirmDialog({ isOpen: false });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed");
+      setError(getErrorMessage(err, "Failed to cancel order."));
     } finally {
       setActionLoading(false);
     }
@@ -225,7 +220,7 @@ export default function AdminOrders() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedOrders.map((order) => (
+                {pagination.pageItems.map((order) => (
                   <tr key={order.id}>
                     <td className="order-id">
                       {formatOrderNumber(order)}
@@ -280,15 +275,15 @@ export default function AdminOrders() {
               </tbody>
             </table>
 
-            {totalPages > 1 && (
+            {pagination.totalPages > 1 && (
               <div className="orders-pagination">
                 <Pagination
-                  page={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={setPage}
-                  firstItem={(currentPage - 1) * PAGE_SIZE + 1}
-                  lastItem={(currentPage - 1) * PAGE_SIZE + paginatedOrders.length}
-                  totalItems={filteredOrders.length}
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  onPageChange={pagination.setPage}
+                  firstItem={pagination.firstItem}
+                  lastItem={pagination.lastItem}
+                  totalItems={pagination.totalItems}
                   itemLabel="orders"
                 />
               </div>
@@ -436,7 +431,9 @@ export default function AdminOrders() {
                 {selectedOrder.status === "Pending" && (
                   <>
                     <button
+                      type="button"
                       className="action-btn primary-btn"
+                      disabled={actionLoading}
                       onClick={() =>
                         handleUpdateStatus(selectedOrder.id, "Preparing")
                       }
@@ -449,7 +446,9 @@ export default function AdminOrders() {
                 {selectedOrder.status === "Preparing" && (
                   <>
                     <button
+                      type="button"
                       className="action-btn primary-btn"
+                      disabled={actionLoading}
                       onClick={() =>
                         handleUpdateStatus(selectedOrder.id, "Ready")
                       }
@@ -462,7 +461,9 @@ export default function AdminOrders() {
                 {selectedOrder.status === "Ready" && (
                   <>
                     <button
+                      type="button"
                       className="action-btn primary-btn"
+                      disabled={actionLoading}
                       onClick={() =>
                         handleUpdateStatus(selectedOrder.id, "Delivered")
                       }
@@ -476,7 +477,9 @@ export default function AdminOrders() {
                   selectedOrder.status === "Preparing") && (
                   <>
                     <button
+                      type="button"
                       className="action-btn danger-btn"
+                      disabled={actionLoading}
                       onClick={() => handleCancelOrder(selectedOrder.id)}
                     >
                       Cancel Order
@@ -495,20 +498,10 @@ export default function AdminOrders() {
         {/* ==================== CONFIRM DIALOG ==================== */}
         <ConfirmDialog
           isOpen={confirmDialog.isOpen}
-          title={
-            confirmDialog.action === "cancel"
-              ? "Cancel Order?"
-              : "Update Order Status?"
-          }
-          message={
-            confirmDialog.action === "cancel"
-              ? "Are you sure you want to cancel this order? This action cannot be undone."
-              : `Change order status to ${confirmDialog.newStatus}?`
-          }
-          confirmText={
-            confirmDialog.action === "cancel" ? "Cancel Order" : "Update Status"
-          }
-          isDangerous={confirmDialog.action === "cancel"}
+          title="Cancel Order?"
+          message="Are you sure you want to cancel this order? This action cannot be undone."
+          confirmText="Cancel Order"
+          isDangerous
           onConfirm={handleConfirmAction}
           onCancel={() => setConfirmDialog({ isOpen: false })}
           isLoading={actionLoading}

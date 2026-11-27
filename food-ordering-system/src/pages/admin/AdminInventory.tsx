@@ -3,10 +3,14 @@ import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import AdminModal from "../../components/admin/AdminModal";
+import Pagination from "../../components/Pagination";
 import { useAdmin } from "../../context/AdminContext";
 import type { InventoryItem } from "../../types";
 import { sortInventoryByPriority } from "../../utils/orderHelpers";
+import { usePagination } from "../../utils/usePagination";
 import "./AdminInventory.css";
+
+const PAGE_SIZE = 10;
 
 type StatusFilter =
   | "All"
@@ -59,6 +63,11 @@ export default function AdminInventory() {
       }),
     );
   }, [inventoryItems, searchQuery, statusFiltersSelected]);
+  const pagination = usePagination(
+    filteredItems,
+    PAGE_SIZE,
+    JSON.stringify([searchQuery, [...statusFiltersSelected].sort()]),
+  );
 
   // ==================== HANDLERS ====================
   const handleOpenRestock = (item: InventoryItem) => {
@@ -182,62 +191,73 @@ export default function AdminInventory() {
             <p className="empty-state">No inventory items found</p>
           </div>
         ) : (
-          <div className="inventory-table-container">
-            <table className="inventory-table">
-              <thead>
-                <tr>
-                  <th>Item Name</th>
-                  <th>Category</th>
-                  <th>Stock Quantity</th>
-                  <th>Status</th>
-                  <th>Last Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={`status-${item.status.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <td className="item-name">{item.name}</td>
-                    <td>{item.category}</td>
-                    <td className="stock-quantity">
-                      <span
-                        className={`stock-badge ${getStockClass(item.stock)}`}
-                      >
-                        {item.stock}
-                      </span>
-                    </td>
-                    <td>
-                      <StatusSelect
-                        currentStatus={item.status}
-                        onStatusChange={(status) =>
-                          handleStatusChange(item.id, status)
-                        }
-                        disabled={actionLoading}
-                        isOutOfStock={item.stock <= 0}
-                      />
-                    </td>
-                    <td className="last-updated">
-                      {item.lastUpdated
-                        ? new Date(item.lastUpdated).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td>
-                      <button
-                        className="action-btn restock-btn"
-                        onClick={() => handleOpenRestock(item)}
-                        disabled={actionLoading}
-                      >
-                        Restock
-                      </button>
-                    </td>
+          <>
+            <div className="inventory-table-container">
+              <table className="inventory-table">
+                <thead>
+                  <tr>
+                    <th>Item Name</th>
+                    <th>Category</th>
+                    <th>Stock Quantity</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pagination.pageItems.map((item) => (
+                    <tr
+                      key={item.id}
+                      className={`status-${item.status.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      <td className="item-name">{item.name}</td>
+                      <td>{item.category}</td>
+                      <td className="stock-quantity">
+                        <span
+                          className={`stock-badge ${getStockClass(item.stock)}`}
+                        >
+                          {item.stock}
+                        </span>
+                      </td>
+                      <td>
+                        <StatusSelect
+                          currentStatus={item.status}
+                          onStatusChange={(status) =>
+                            handleStatusChange(item.id, status)
+                          }
+                          disabled={actionLoading}
+                          isOutOfStock={item.stock <= 0}
+                        />
+                      </td>
+                      <td className="last-updated">
+                        {item.lastUpdated
+                          ? new Date(item.lastUpdated).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td>
+                        <button
+                          className="action-btn restock-btn"
+                          onClick={() => handleOpenRestock(item)}
+                          disabled={actionLoading}
+                        >
+                          Restock
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.setPage}
+              firstItem={pagination.firstItem}
+              lastItem={pagination.lastItem}
+              totalItems={pagination.totalItems}
+              itemLabel="items"
+            />
+          </>
         )}
 
         {/* ==================== RESTOCK MODAL ==================== */}

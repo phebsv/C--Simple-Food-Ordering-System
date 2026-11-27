@@ -1,4 +1,4 @@
-/* Shared page controls (My Orders, Cart, Menu, admin Orders). */
+/* Shared page controls for customer and admin lists. */
 .pager {
   display: flex;
   flex-wrap: wrap;
