@@ -3,9 +3,14 @@ import AdminSidebar from "../../components/admin/AdminSidebar";
 import AdminHeader from "../../components/admin/AdminHeader";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import AdminModal from "../../components/admin/AdminModal";
+import Pagination from "../../components/Pagination";
 import { useAdmin } from "../../context/AdminContext";
 import type { InventoryItem } from "../../types";
+import { sortInventoryByPriority } from "../../utils/orderHelpers";
+import { usePagination } from "../../utils/usePagination";
 import "./AdminInventory.css";
+
+const PAGE_SIZE = 10;
 
 type StatusFilter =
   | "All"
@@ -30,7 +35,9 @@ export default function AdminInventory() {
   } = useAdmin();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("All");
+  const [statusFiltersSelected, setStatusFiltersSelected] = useState<
+    Set<StatusFilter>
+  >(() => new Set(["All"]));
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [isRestockOpen, setIsRestockOpen] = useState(false);
   const [restockForm, setRestockForm] = useState<RestockFormData>({
@@ -44,15 +51,23 @@ export default function AdminInventory() {
 
   // ==================== FILTERING ====================
   const filteredItems = useMemo(() => {
-    return inventoryItems.filter((item) => {
-      const matchesSearch = item.name
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "All" || item.status === statusFilter;
-      return matchesSearch && matchesStatus;
-    });
-  }, [inventoryItems, searchQuery, statusFilter]);
+    return sortInventoryByPriority(
+      inventoryItems.filter((item) => {
+        const matchesSearch = item.name
+          .toLowerCase()
+          .includes(searchQuery.toLowerCase());
+        const matchesStatus =
+          statusFiltersSelected.has("All") ||
+          statusFiltersSelected.has(item.status);
+        return matchesSearch && matchesStatus;
+      }),
+    );
+  }, [inventoryItems, searchQuery, statusFiltersSelected]);
+  const pagination = usePagination(
+    filteredItems,
+    PAGE_SIZE,
+    JSON.stringify([searchQuery, [...statusFiltersSelected].sort()]),
+  );
 
   // ==================== HANDLERS ====================
   const handleOpenRestock = (item: InventoryItem) => {
@@ -92,6 +107,22 @@ export default function AdminInventory() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleStatusFilterToggle = (status: StatusFilter) => {
+    setStatusFiltersSelected((current) => {
+      if (status === "All") return new Set(["All"]);
+
+      const next = new Set(current);
+      next.delete("All");
+      if (next.has(status)) {
+        next.delete(status);
+      } else {
+        next.add(status);
+      }
+
+      return next.size === 0 ? new Set(["All"]) : next;
+    });
   };
 
   const statusFilters: StatusFilter[] = [
@@ -136,8 +167,9 @@ export default function AdminInventory() {
           {statusFilters.map((status) => (
             <button
               key={status}
-              className={`filter-tab ${statusFilter === status ? "active" : ""}`}
-              onClick={() => setStatusFilter(status)}
+              className={`filter-tab ${statusFiltersSelected.has(status) ? "active" : ""}`}
+              onClick={() => handleStatusFilterToggle(status)}
+              aria-pressed={statusFiltersSelected.has(status)}
             >
               {status}
               <span className="filter-count">
@@ -159,62 +191,73 @@ export default function AdminInventory() {
             <p className="empty-state">No inventory items found</p>
           </div>
         ) : (
-          <div className="inventory-table-container">
-            <table className="inventory-table">
-              <thead>
-                <tr>
-                  <th>Item Name</th>
-                  <th>Category</th>
-                  <th>Stock Quantity</th>
-                  <th>Status</th>
-                  <th>Last Updated</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={`status-${item.status.toLowerCase().replace(/\s+/g, "-")}`}
-                  >
-                    <td className="item-name">{item.name}</td>
-                    <td>{item.category}</td>
-                    <td className="stock-quantity">
-                      <span
-                        className={`stock-badge ${getStockClass(item.stock)}`}
-                      >
-                        {item.stock}
-                      </span>
-                    </td>
-                    <td>
-                      <StatusSelect
-                        currentStatus={item.status}
-                        onStatusChange={(status) =>
-                          handleStatusChange(item.id, status)
-                        }
-                        disabled={actionLoading}
-                        isOutOfStock={item.stock <= 0}
-                      />
-                    </td>
-                    <td className="last-updated">
-                      {item.lastUpdated
-                        ? new Date(item.lastUpdated).toLocaleDateString()
-                        : "-"}
-                    </td>
-                    <td>
-                      <button
-                        className="action-btn restock-btn"
-                        onClick={() => handleOpenRestock(item)}
-                        disabled={actionLoading}
-                      >
-                        Restock
-                      </button>
-                    </td>
+          <>
+            <div className="inventory-table-container">
+              <table className="inventory-table">
+                <thead>
+                  <tr>
+                    <th>Item Name</th>
+                    <th>Category</th>
+                    <th>Stock Quantity</th>
+                    <th>Status</th>
+                    <th>Last Updated</th>
+                    <th>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {pagination.pageItems.map((item) => (
+                    <tr
+                      key={item.id}
+                      className={`status-${item.status.toLowerCase().replace(/\s+/g, "-")}`}
+                    >
+                      <td className="item-name">{item.name}</td>
+                      <td>{item.category}</td>
+                      <td className="stock-quantity">
+                        <span
+                          className={`stock-badge ${getStockClass(item.stock)}`}
+                        >
+                          {item.stock}
+                        </span>
+                      </td>
+                      <td>
+                        <StatusSelect
+                          currentStatus={item.status}
+                          onStatusChange={(status) =>
+                            handleStatusChange(item.id, status)
+                          }
+                          disabled={actionLoading}
+                          isOutOfStock={item.stock <= 0}
+                        />
+                      </td>
+                      <td className="last-updated">
+                        {item.lastUpdated
+                          ? new Date(item.lastUpdated).toLocaleDateString()
+                          : "-"}
+                      </td>
+                      <td>
+                        <button
+                          className="action-btn restock-btn"
+                          onClick={() => handleOpenRestock(item)}
+                          disabled={actionLoading}
+                        >
+                          Restock
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.setPage}
+              firstItem={pagination.firstItem}
+              lastItem={pagination.lastItem}
+              totalItems={pagination.totalItems}
+              itemLabel="items"
+            />
+          </>
         )}
 
         {/* ==================== RESTOCK MODAL ==================== */}

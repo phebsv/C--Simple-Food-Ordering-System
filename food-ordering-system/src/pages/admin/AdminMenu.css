@@ -217,7 +217,7 @@
 
 .action-btn {
   flex: 1;
-  padding: 8px 10px;
+  padding: 8px 7px;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -251,21 +251,21 @@
 }
 
 .available-btn {
-  background: #f0f4c3;
-  color: #558b2f;
+  background: #2e7d32;
+  color: #fff;
 }
 
 .available-btn:hover {
-  background: #e0e97f;
+  background: #1b5e20;
 }
 
 .unavailable-btn {
-  background: #fce4ec;
-  color: #ad1457;
+  background: #c62828;
+  color: #fff;
 }
 
 .unavailable-btn:hover {
-  background: #f8bbd0;
+  background: #b71c1c;
 }
 
 /* ==================== FORM ==================== */

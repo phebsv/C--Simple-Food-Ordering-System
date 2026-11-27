@@ -9,7 +9,13 @@ import type { FoodItem } from "../../types";
 import { getErrorMessage } from "../../services/api";
 import "./AdminMenu.css";
 
-type CategoryFilter = "All" | "Meals" | "Drinks" | "Snacks" | "Desserts";
+type CategoryFilter =
+  | "All"
+  | "Meals"
+  | "Drinks"
+  | "Snacks"
+  | "Desserts"
+  | "Unavailable";
 
 interface FormData {
   name: string;
@@ -68,7 +74,10 @@ export default function AdminMenu() {
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
       const matchesCategory =
-        categoryFilter === "All" || item.category === categoryFilter;
+        categoryFilter === "All" ||
+        (categoryFilter === "Unavailable"
+          ? item.available !== true
+          : item.category === categoryFilter);
       return matchesSearch && matchesCategory;
     });
   }, [menuItems, searchQuery, categoryFilter]);
@@ -185,6 +194,7 @@ export default function AdminMenu() {
     "Drinks",
     "Snacks",
     "Desserts",
+    "Unavailable",
   ];
 
   return (
@@ -290,7 +300,7 @@ export default function AdminMenu() {
                       Delete
                     </button>
                     <button
-                      className={`action-btn toggle-btn ${item.available ? "available-btn" : "unavailable-btn"}`}
+                      className={`action-btn toggle-btn ${item.available ? "unavailable-btn" : "available-btn"}`}
                       onClick={() => handleToggleAvailability(item.id)}
                       disabled={
                         actionLoading ||

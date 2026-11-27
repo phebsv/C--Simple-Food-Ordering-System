@@ -55,10 +55,12 @@
 
 .stat-card {
   background: var(--white);
+  justify-content: center;
   border-radius: 12px;
   min-width: 0;
-  min-height: 104px;
+ /* min-height: 104px;*/
   padding: 18px;
+  padding-right: 10px;
   display: flex;
   align-items: flex-start;
   gap: 14px;
@@ -82,6 +84,7 @@
   line-height: 1.2;
   overflow-wrap: anywhere;
   text-transform: uppercase;
+  transform: translateX(8px);
 }
 
 .stat-content {
@@ -89,6 +92,8 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center; 
   gap: 4px;
 }
 
@@ -394,6 +399,7 @@
   .stat-icon {
     max-width: 58px;
     font-size: 10px;
+    padding-left: 10px;
   }
 
   .stat-value {

@@ -69,6 +69,31 @@ try
         "persisted line-item sum");
     Console.WriteLine("PASS: real MySQL checkout used live menu prices (not stale cart prices): 2 x 14.25 + 3 x 9.30 = 56.40.");
 
+    var adminOrders = new AdminOrderService(orderRepository);
+    var preparingOrder = await adminOrders.UpdateStatusAsync(
+        order.Id, new UpdateOrderStatusRequest("Preparing"), CancellationToken.None);
+    AssertEqual(OrderStatus.Preparing, preparingOrder.Status, "forward order status");
+    var readyOrder = await adminOrders.UpdateStatusAsync(
+        order.Id, new UpdateOrderStatusRequest("Ready"), CancellationToken.None);
+    AssertEqual(OrderStatus.Ready, readyOrder.Status, "forward order status to Ready");
+    var deliveredOrder = await adminOrders.UpdateStatusAsync(
+        order.Id, new UpdateOrderStatusRequest("Delivered"), CancellationToken.None);
+    AssertEqual(OrderStatus.Delivered, deliveredOrder.Status, "forward order status to Delivered");
+
+    var reverseTransitionRejected = false;
+    try
+    {
+        await adminOrders.UpdateStatusAsync(
+            order.Id, new UpdateOrderStatusRequest("Ready"), CancellationToken.None);
+    }
+    catch (ApiError error) when (error.Status == 409)
+    {
+        reverseTransitionRejected = true;
+    }
+    if (!reverseTransitionRejected)
+        throw new InvalidOperationException("A backward order status transition was unexpectedly allowed.");
+    Console.WriteLine("PASS: order status transitions follow the forward lifecycle.");
+
     var review = new Review
     {
         Id = $"it-review-{suffix}",

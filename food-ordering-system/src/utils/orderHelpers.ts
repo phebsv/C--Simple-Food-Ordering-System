@@ -1,6 +1,13 @@
-import type { FoodItem, InventoryStatus, Order, Review } from "../types";
+import type { FoodItem, InventoryItem, InventoryStatus, Order, Review } from "../types";
 
 export const LOW_STOCK_THRESHOLD = 10;
+
+const INVENTORY_STATUS_PRIORITY: Record<InventoryStatus, number> = {
+  "Out of Stock": 0,
+  "Low Stock": 1,
+  Available: 2,
+  Unavailable: 3,
+};
 
 /** Status shown in the admin inventory, derived from stock and availability. */
 export function inventoryStatus(item: Pick<FoodItem, "stock" | "available">): InventoryStatus {
@@ -9,6 +16,15 @@ export function inventoryStatus(item: Pick<FoodItem, "stock" | "available">): In
   if (item.available === false) return "Unavailable";
   if (stock < LOW_STOCK_THRESHOLD) return "Low Stock";
   return "Available";
+}
+
+/** Sort inventory by urgency without changing the order of items within a status. */
+export function sortInventoryByPriority<T extends Pick<InventoryItem, "status">>(
+  items: T[],
+): T[] {
+  return [...items].sort(
+    (a, b) => INVENTORY_STATUS_PRIORITY[a.status] - INVENTORY_STATUS_PRIORITY[b.status],
+  );
 }
 
 /**

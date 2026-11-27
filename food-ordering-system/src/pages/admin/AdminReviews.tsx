@@ -4,9 +4,13 @@ import AdminHeader from "../../components/admin/AdminHeader";
 import AdminModal from "../../components/admin/AdminModal";
 import ConfirmDialog from "../../components/admin/ConfirmDialog";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
+import Pagination from "../../components/Pagination";
 import { useAdmin } from "../../context/AdminContext";
 import type { Review } from "../../types";
+import { usePagination } from "../../utils/usePagination";
 import "./AdminReviews.css";
+
+const PAGE_SIZE = 10;
 
 type RatingFilter = "All" | 5 | 4 | 3 | 2 | 1;
 
@@ -70,6 +74,11 @@ export default function AdminReviews() {
       return matchesSearch && matchesRating;
     });
   }, [reviews, searchQuery, ratingFilter]);
+  const pagination = usePagination(
+    filteredReviews,
+    PAGE_SIZE,
+    JSON.stringify([searchQuery, ratingFilter]),
+  );
 
   // ==================== HANDLERS ====================
   const handleOpenDetails = (review: Review) => {
@@ -164,59 +173,70 @@ export default function AdminReviews() {
             <p className="empty-state">No reviews found</p>
           </div>
         ) : (
-          <div className="reviews-list">
-            {filteredReviews.map((review) => (
-              <div key={review.id} className="review-card">
-                <div className="review-header">
-                  <div className="review-customer">
-                    <h3>
-                      {displayValue(review.customerName, "Anonymous customer")}
-                    </h3>
-                    <p className="review-meta">
-                      Order #
-                      {displayValue(review.orderId, "Unknown order").slice(
-                        0,
-                        8,
-                      )}
-                    </p>
+          <>
+            <div className="reviews-list">
+              {pagination.pageItems.map((review) => (
+                <div key={review.id} className="review-card">
+                  <div className="review-header">
+                    <div className="review-customer">
+                      <h3>
+                        {displayValue(review.customerName, "Anonymous customer")}
+                      </h3>
+                      <p className="review-meta">
+                        Order #
+                        {displayValue(review.orderId, "Unknown order").slice(
+                          0,
+                          8,
+                        )}
+                      </p>
+                    </div>
+                    <div className="review-rating">
+                      <RatingStars rating={review.rating} />
+                      <span className="rating-value">{review.rating}</span>
+                    </div>
                   </div>
-                  <div className="review-rating">
-                    <RatingStars rating={review.rating} />
-                    <span className="rating-value">{review.rating}</span>
+
+                  <div className="review-food-item">
+                    <strong>Food Item:</strong>{" "}
+                    {displayValue(review.foodItemName, "Unknown item")}
+                  </div>
+
+                  <p className="review-comment">
+                    {displayValue(review.comment, "No comment provided.")}
+                  </p>
+
+                  <div className="review-footer">
+                    <span className="review-date">
+                      {formatReviewDate(review.createdAt)}
+                    </span>
+                    <div className="review-actions">
+                      <button
+                        className="action-btn view-btn"
+                        onClick={() => handleOpenDetails(review)}
+                      >
+                        View
+                      </button>
+                      <button
+                        className="action-btn delete-btn"
+                        onClick={() => handleDeleteClick(review.id)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
                 </div>
-
-                <div className="review-food-item">
-                  <strong>Food Item:</strong>{" "}
-                  {displayValue(review.foodItemName, "Unknown item")}
-                </div>
-
-                <p className="review-comment">
-                  {displayValue(review.comment, "No comment provided.")}
-                </p>
-
-                <div className="review-footer">
-                  <span className="review-date">
-                    {formatReviewDate(review.createdAt)}
-                  </span>
-                  <div className="review-actions">
-                    <button
-                      className="action-btn view-btn"
-                      onClick={() => handleOpenDetails(review)}
-                    >
-                      View
-                    </button>
-                    <button
-                      className="action-btn delete-btn"
-                      onClick={() => handleDeleteClick(review.id)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              onPageChange={pagination.setPage}
+              firstItem={pagination.firstItem}
+              lastItem={pagination.lastItem}
+              totalItems={pagination.totalItems}
+              itemLabel="reviews"
+            />
+          </>
         )}
 
         {/* ==================== REVIEW DETAILS MODAL ==================== */}
