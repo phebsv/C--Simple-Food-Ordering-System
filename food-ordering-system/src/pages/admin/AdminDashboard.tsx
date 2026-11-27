@@ -6,7 +6,7 @@ import AdminHeader from "../../components/admin/AdminHeader";
 import LoadingSpinner from "../../components/admin/LoadingSpinner";
 import { useAdmin } from "../../context/AdminContext";
 import type { AdminProfile } from "../../types";
-import { sortNewestFirst } from "../../utils/orderHelpers";
+import { formatOrderNumber, matchesOrderNumber, sortNewestFirst } from "../../utils/orderHelpers";
 import { formatPricePHP } from "../../utils/textHelpers";
 import "./AdminDashboard.css";
 
@@ -106,6 +106,7 @@ function AdminDashboard() {
         const date = order.createdAt.toLowerCase();
 
         return (
+          matchesOrderNumber(order, searchValue) ||
           orderId.includes(searchValue) ||
           customerName.includes(searchValue) ||
           status.includes(searchValue) ||
@@ -289,7 +290,7 @@ function AdminDashboard() {
               <table>
                 <thead>
                   <tr>
-                    <th>Order ID</th>
+                    <th>Order No.</th>
                     <th>Customer</th>
                     <th>Items</th>
                     <th>Total</th>
@@ -301,8 +302,8 @@ function AdminDashboard() {
                 <tbody>
                   {recentOrders.map((order) => (
                     <tr key={order.id}>
-                      <td className="order-id">
-                        #{order.id.slice(0, 8)}
+                      <td className="order-id" title={`Full Order ID: ${order.id}`}>
+                        {formatOrderNumber(order)}
                       </td>
 
                       <td>{order.customerName}</td>

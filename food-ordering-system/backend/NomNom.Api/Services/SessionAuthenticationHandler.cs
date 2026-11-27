@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
+using NomNom.Api.Repositories;
 
 namespace NomNom.Api.Services;
 
@@ -10,7 +11,8 @@ internal sealed class SessionAuthenticationHandler(
     IOptionsMonitor<AuthenticationSchemeOptions> options,
     ILoggerFactory logger,
     UrlEncoder encoder,
-    ISessionService sessions) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+    ISessionService sessions,
+    IAccountRepository accounts) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
     public const string SchemeName = "Bearer";
     public const string SessionTokenName = "access_token";
@@ -28,6 +30,8 @@ internal sealed class SessionAuthenticationHandler(
 
         var account = await sessions.ValidateAsync(header.Parameter, Context.RequestAborted);
         if (account is null) return AuthenticateResult.Fail("Invalid or expired session.");
+        if (await accounts.FindByIdAsync(account.UserId, Context.RequestAborted) is null)
+            return AuthenticateResult.Fail("Account is inactive.");
 
         var identity = new ClaimsIdentity(
         [

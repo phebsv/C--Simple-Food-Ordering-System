@@ -10,7 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash CHAR(60) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
     phone VARCHAR(20),
     address VARCHAR(300),
-    UNIQUE KEY uq_users_email (email)
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at DATETIME(6) NULL,
+    UNIQUE KEY uq_users_email (email),
+    KEY ix_users_is_deleted (is_deleted)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS menu_items (
@@ -24,11 +27,17 @@ CREATE TABLE IF NOT EXISTS menu_items (
     available BOOLEAN,
     stock INT UNSIGNED,
     last_updated DATETIME(6),
-    UNIQUE KEY uq_menu_display_order (display_order)
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at DATETIME(6) NULL,
+    deleted_available BOOLEAN NULL,
+    UNIQUE KEY uq_menu_display_order (display_order),
+    KEY ix_menu_items_is_deleted (is_deleted)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(64) COLLATE utf8mb4_0900_bin PRIMARY KEY,
+    -- Short, human-friendly number shown to customers (e.g. #0-01). The id stays the real key.
+    order_number BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     customer_id VARCHAR(64) COLLATE utf8mb4_0900_bin NOT NULL,
     customer_name VARCHAR(50) NOT NULL,
     customer_email VARCHAR(100) NOT NULL,
@@ -41,7 +50,11 @@ CREATE TABLE IF NOT EXISTS orders (
     delivery_notes VARCHAR(300),
     created_at DATETIME(6) NOT NULL,
     updated_at DATETIME(6) NOT NULL,
-    FOREIGN KEY (customer_id) REFERENCES users (id)
+    is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at DATETIME(6) NULL,
+    UNIQUE KEY uq_orders_order_number (order_number),
+    FOREIGN KEY (customer_id) REFERENCES users (id),
+    KEY ix_orders_is_deleted (is_deleted)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -67,9 +80,11 @@ CREATE TABLE IF NOT EXISTS cart_items (
     category VARCHAR(30) NOT NULL,
     image TEXT NOT NULL,
     quantity INT UNSIGNED NOT NULL,
+    deleted_at DATETIME(6) NULL,
     UNIQUE KEY uq_cart_customer_menu (customer_id, menu_id),
     FOREIGN KEY (customer_id) REFERENCES users (id),
-    FOREIGN KEY (menu_id) REFERENCES menu_items (id)
+    FOREIGN KEY (menu_id) REFERENCES menu_items (id),
+    KEY ix_cart_items_deleted_at (deleted_at)
 ) ENGINE=InnoDB;
 
 CREATE TABLE IF NOT EXISTS reviews (
@@ -83,7 +98,9 @@ CREATE TABLE IF NOT EXISTS reviews (
     comment VARCHAR(500) NOT NULL,
     created_at DATETIME(6) NOT NULL,
     hidden BOOLEAN NOT NULL DEFAULT FALSE,
+    deleted_at DATETIME(6) NULL,
     UNIQUE KEY uq_review_order_item (order_id, food_item_id),
     FOREIGN KEY (order_id) REFERENCES orders (id),
-    FOREIGN KEY (customer_id) REFERENCES users (id)
+    FOREIGN KEY (customer_id) REFERENCES users (id),
+    KEY ix_reviews_deleted_at (deleted_at)
 ) ENGINE=InnoDB;

@@ -113,16 +113,6 @@ describe("Login", () => {
   });
 
 
-  it("has remember me checkbox", () => {
-    render(
-      <MemoryRouter>
-        <Login />
-      </MemoryRouter>,
-    );
-
-    const rememberCheckbox = screen.getByRole("checkbox", { name: /Remember me/i });
-    expect(rememberCheckbox).toBeInTheDocument();
-  });
 
   it("has link to register page", () => {
     render(

@@ -29,34 +29,6 @@ describe("Register", () => {
     expect(screen.getByPlaceholderText(/Re-enter your password/i)).toBeInTheDocument();
   });
 
-  it("validates terms must be agreed", async () => {
-    const user = userEvent.setup();
-    render(
-      <MemoryRouter>
-        <Register />
-      </MemoryRouter>,
-    );
-
-    await user.type(screen.getByPlaceholderText(/First name/i), "Juan");
-    await user.type(screen.getByPlaceholderText(/Last name/i), "Dela Cruz");
-    await user.type(
-      screen.getByPlaceholderText(/Enter your email address/i),
-      "juan@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText(/Enter your phone number/i),
-      "09171234567",
-    );
-    await user.type(screen.getByPlaceholderText(/Create a password/i), "Passw0rd1");
-    await user.type(
-      screen.getByPlaceholderText(/Re-enter your password/i),
-      "Passw0rd1",
-    );
-    // Don't check the agree checkbox
-    await user.click(screen.getByRole("button", { name: /Create Account/i }));
-
-    expect(screen.getByText(/agree to the Terms/i)).toBeInTheDocument();
-  });
 
   it("validates first name is required and minimum length", async () => {
     const user = userEvent.setup();
@@ -81,7 +53,6 @@ describe("Register", () => {
       screen.getByPlaceholderText(/Re-enter your password/i),
       "Passw0rd1",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
     expect(screen.getByText(/First name must be between 2 and 50 characters/i)).toBeInTheDocument();
@@ -110,7 +81,6 @@ describe("Register", () => {
       screen.getByPlaceholderText(/Re-enter your password/i),
       "Passw0rd1",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
     expect(screen.getByText(/valid email address/i)).toBeInTheDocument();
@@ -139,7 +109,6 @@ describe("Register", () => {
       screen.getByPlaceholderText(/Re-enter your password/i),
       "Passw0rd1",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
     expect(screen.getByText(/11-digit mobile number/i)).toBeInTheDocument();
@@ -168,7 +137,6 @@ describe("Register", () => {
       screen.getByPlaceholderText(/Re-enter your password/i),
       "password",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
     expect(screen.getByText(/Password must contain at least one number/i)).toBeInTheDocument();
@@ -197,7 +165,6 @@ describe("Register", () => {
       screen.getByPlaceholderText(/Re-enter your password/i),
       "Passw0rd2",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
     expect(screen.getByText(/Passwords do not match/i)).toBeInTheDocument();
@@ -226,7 +193,6 @@ describe("Register", () => {
       screen.getByPlaceholderText(/Re-enter your password/i),
       "Passw0rd1",
     );
-    await user.click(screen.getByRole("checkbox"));
     await user.click(screen.getByRole("button", { name: /Create Account/i }));
 
     // Should not show error

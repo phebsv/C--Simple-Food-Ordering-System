@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import BgFood from "../../components/BgFood";
+import Pagination from "../../components/Pagination";
 import { useCart } from "../../context/CartContext";
 import { FALLBACK_FOOD_IMAGE, showFallbackImage } from "../../constants/images";
 import { getErrorMessage, getMenuItems, getReviews } from "../../services/api";
 import { LOW_STOCK_THRESHOLD, averageRatings } from "../../utils/orderHelpers";
 import { decodeHtmlEntities, formatPricePHP } from "../../utils/textHelpers";
+import { usePagination } from "../../utils/usePagination";
 import type { FoodItem } from "../../types";
 import burgerImg from "../../assets/burger2.png";
 import pizzaImg from "../../assets/pizza1.png";
@@ -15,6 +17,8 @@ import "./Dashboard.css";
 import "./Menu.css";
 
 const REFRESH_INTERVAL_MS = 5000;
+// The grid shows 3, 2 or 1 columns depending on screen width; 6 fills whole rows in all three.
+const ITEMS_PER_PAGE = 6;
 
 // Transparent food images (same as the dashboard) look clean on the red banner.
 // Pick one that matches the featured item; otherwise use the item's own photo.
@@ -43,6 +47,8 @@ type MenuListProps = {
   ratings: Ratings;
   searchQuery: string;
   onSearchChange: (value: string) => void;
+  /** Shown under the grid (the page controls). */
+  footer?: ReactNode;
 };
 
 function MenuList({
@@ -56,6 +62,7 @@ function MenuList({
   ratings,
   searchQuery,
   onSearchChange,
+  footer,
 }: MenuListProps) {
   return (
     <section className="menu-section">
@@ -152,6 +159,7 @@ function MenuList({
           );
         })}
       </div>
+      {footer}
     </section>
   );
 }
@@ -217,6 +225,18 @@ export default function Menu() {
         decodeHtmlEntities(item.name).toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query)),
   );
+
+  // Searching or changing categories starts again at page 1.
+  const pages = usePagination(
+    visibleMenuItems,
+    ITEMS_PER_PAGE,
+    `${query}|${hiddenCategories.join(",")}`,
+  );
+  const menuTopRef = useRef<HTMLDivElement>(null);
+  const goToPage = (page: number) => {
+    pages.setPage(page);
+    menuTopRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   const handleCategoryToggle = (category: string) => {
     setHiddenCategories((prev) =>
@@ -308,8 +328,9 @@ export default function Menu() {
                     {notice}
                   </p>
                 )}
+                <div ref={menuTopRef} style={{ scrollMarginTop: 80 }} />
                 <MenuList
-                  items={visibleMenuItems}
+                  items={pages.pageItems}
                   categories={categories}
                   hiddenCategories={hiddenCategories}
                   onCategoryToggle={handleCategoryToggle}
@@ -319,6 +340,17 @@ export default function Menu() {
                   ratings={ratings}
                   searchQuery={searchQuery}
                   onSearchChange={setSearchQuery}
+                  footer={
+                    <Pagination
+                      page={pages.page}
+                      totalPages={pages.totalPages}
+                      onPageChange={goToPage}
+                      firstItem={pages.firstItem}
+                      lastItem={pages.lastItem}
+                      totalItems={pages.totalItems}
+                      itemLabel="dishes"
+                    />
+                  }
                 />
               </>
             )}

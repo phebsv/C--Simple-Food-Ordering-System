@@ -62,29 +62,6 @@
   margin-bottom: 1.3rem;
 }
 
-.login-options {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 1.2rem;
-}
-
-.login-remember {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  color: var(--text);
-}
-
-.login-remember input {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--red);
-  cursor: pointer;
-}
-
 .login-forgot {
   background: none;
   border: none;

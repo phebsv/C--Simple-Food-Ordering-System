@@ -35,3 +35,5 @@ public sealed record AuthUser(
 public sealed record AuthData(string Token, AuthUser User);
 
 public sealed record AuthResponse(string Message, AuthData Data);
+
+public sealed record DeletedUser(string Id, string Name, string Email, string Role, string? DeletedAt);

@@ -15,6 +15,10 @@ public enum OrderStatus
 public sealed record Order
 {
     public required string Id { get; init; }
+
+    /// <summary>Short sequential number for display (#0-01); assigned by MySQL when the order is saved.</summary>
+    public long OrderNumber { get; init; }
+
     public required string CustomerId { get; init; }
     public required string CustomerName { get; init; }
     public required string CustomerEmail { get; init; }

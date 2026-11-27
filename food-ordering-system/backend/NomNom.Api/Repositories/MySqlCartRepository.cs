@@ -14,7 +14,7 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = SelectItems + "\nWHERE customer_id = @customerId\nORDER BY name;";
+        command.CommandText = SelectItems + "\nWHERE customer_id = @customerId AND deleted_at IS NULL\nORDER BY name;";
         command.Parameters.AddWithValue("@customerId", customerId);
         await using var rows = await command.ExecuteReaderAsync(cancellationToken);
         var items = new List<CartItem>();
@@ -27,7 +27,7 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = SelectItems + "\nWHERE customer_id = @customerId AND menu_id = @menuId;";
+        command.CommandText = SelectItems + "\nWHERE customer_id = @customerId AND menu_id = @menuId AND deleted_at IS NULL;";
         command.Parameters.AddWithValue("@customerId", customerId);
         command.Parameters.AddWithValue("@menuId", menuId);
         await using var rows = await command.ExecuteReaderAsync(cancellationToken);
@@ -38,14 +38,14 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = SelectItems + "\nWHERE id = @id;";
+        command.CommandText = SelectItems + "\nWHERE id = @id AND deleted_at IS NULL;";
         command.Parameters.AddWithValue("@id", id);
         await using var rows = await command.ExecuteReaderAsync(cancellationToken);
             return await rows.ReadAsync(cancellationToken) ? ReadItem(rows) : null;
 }
 
     /// <summary>Returns false when this customer already has the item in their cart.</summary>
-    public async Task<bool> TryInsertAsync(CartItem item, CancellationToken cancellationToken)
+    public async Task<CartItem?> TryInsertOrRestoreAsync(CartItem item, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
@@ -65,11 +65,27 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
         try
         {
             await command.ExecuteNonQueryAsync(cancellationToken);
-            return true;
+            return item;
         }
         catch (MySqlException ex) when (ex.ErrorCode == MySqlErrorCode.DuplicateKeyEntry)
         {
-            return false;
+            await using var restore = connection.CreateCommand();
+            restore.CommandText = """
+                UPDATE cart_items
+                SET deleted_at = NULL, name = @name, description = @description, price = @price,
+                    category = @category, image = @image, quantity = 1
+                WHERE customer_id = @customerId AND menu_id = @menuId AND deleted_at IS NOT NULL;
+                """;
+            restore.Parameters.AddWithValue("@customerId", item.CustomerId);
+            restore.Parameters.AddWithValue("@menuId", item.MenuId);
+            restore.Parameters.AddWithValue("@name", item.Name);
+            restore.Parameters.AddWithValue("@description", item.Description);
+            restore.Parameters.AddWithValue("@price", item.Price);
+            restore.Parameters.AddWithValue("@category", item.Category);
+            restore.Parameters.AddWithValue("@image", item.Image);
+            if (await restore.ExecuteNonQueryAsync(cancellationToken) == 1)
+                return await FindByMenuAsync(item.CustomerId, item.MenuId, cancellationToken);
+            return null;
         }
     }
 
@@ -77,7 +93,10 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "UPDATE cart_items SET quantity = @quantity WHERE id = @id;";
+        command.CommandText = """
+            UPDATE cart_items SET quantity = @quantity
+            WHERE id = @id AND deleted_at IS NULL;
+            """;
         command.Parameters.AddWithValue("@quantity", quantity);
         command.Parameters.AddWithValue("@id", id);
         await command.ExecuteNonQueryAsync(cancellationToken);
@@ -95,7 +114,10 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
     {
         await using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "DELETE FROM cart_items WHERE id = @id AND customer_id = @customerId;";
+        command.CommandText = """
+            UPDATE cart_items SET deleted_at = UTC_TIMESTAMP(6)
+            WHERE id = @id AND customer_id = @customerId AND deleted_at IS NULL;
+            """;
         command.Parameters.AddWithValue("@id", id);
         command.Parameters.AddWithValue("@customerId", customerId);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
@@ -105,7 +127,10 @@ internal sealed class MySqlCartRepository(MySqlDataSource dataSource) : ICartRep
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM cart_items WHERE customer_id = @customerId;";
+        command.CommandText = """
+            UPDATE cart_items SET deleted_at = UTC_TIMESTAMP(6)
+            WHERE customer_id = @customerId AND deleted_at IS NULL;
+            """;
         command.Parameters.AddWithValue("@customerId", customerId);
         await command.ExecuteNonQueryAsync(cancellationToken);
     }

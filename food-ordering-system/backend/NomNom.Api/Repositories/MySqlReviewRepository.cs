@@ -14,7 +14,25 @@ internal sealed class MySqlReviewRepository(MySqlDataSource dataSource) : IRevie
             SELECT id, order_id, customer_id, customer_name, food_item_id, food_item_name,
                    rating, comment, created_at, hidden
             FROM reviews
+            WHERE deleted_at IS NULL
             ORDER BY created_at DESC, id;
+            """;
+        await using var rows = await command.ExecuteReaderAsync(cancellationToken);
+        var reviews = new List<Review>();
+        while (await rows.ReadAsync(cancellationToken)) reviews.Add(ReadReview(rows));
+        return reviews;
+    }
+
+    public async Task<List<Review>> ListDeletedAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, order_id, customer_id, customer_name, food_item_id, food_item_name,
+                   rating, comment, created_at, hidden
+            FROM reviews
+            WHERE deleted_at IS NOT NULL
+            ORDER BY deleted_at DESC, id;
             """;
         await using var rows = await command.ExecuteReaderAsync(cancellationToken);
         var reviews = new List<Review>();
@@ -58,9 +76,24 @@ internal sealed class MySqlReviewRepository(MySqlDataSource dataSource) : IRevie
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
         await using var command = connection.CreateCommand();
-        command.CommandText = "DELETE FROM reviews WHERE id = @id;";
+        command.CommandText = """
+            UPDATE reviews SET deleted_at = UTC_TIMESTAMP(6)
+            WHERE id = @id AND deleted_at IS NULL;
+            """;
         command.Parameters.AddWithValue("@id", id);
         return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
+    public async Task<bool> RestoreAsync(string id, CancellationToken cancellationToken)
+    {
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            UPDATE reviews SET deleted_at = NULL
+            WHERE id = @id AND deleted_at IS NOT NULL;
+            """;
+        command.Parameters.AddWithValue("@id", id);
+        return await command.ExecuteNonQueryAsync(cancellationToken) == 1;
     }
 
     internal static string Timestamp(DateTime value) =>

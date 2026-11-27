@@ -15,7 +15,12 @@ internal sealed class AdminOrderService(IOrderRepository orders) : IAdminOrderSe
         if (!string.IsNullOrWhiteSpace(search))
         {
             var term = search.Trim();
-            result = result.Where(order => order.Id.Contains(term, StringComparison.OrdinalIgnoreCase));
+            // "#0-01", "0-01" and "1" all find order number 1; the long id still works too.
+            var isNumber = long.TryParse(term.Replace("#", "").Replace("-", ""), NumberStyles.None,
+                CultureInfo.InvariantCulture, out var number);
+            result = result.Where(order =>
+                (isNumber && order.OrderNumber == number) ||
+                order.Id.Contains(term, StringComparison.OrdinalIgnoreCase));
         }
 
         if (!string.IsNullOrWhiteSpace(date))
@@ -33,6 +38,21 @@ internal sealed class AdminOrderService(IOrderRepository orders) : IAdminOrderSe
     public async Task<Order> GetAsync(string id, CancellationToken cancellationToken) =>
         await orders.FindAsync(id, null, cancellationToken)
             ?? throw ApiError.NotFound("Order not found.");
+
+    public Task<IReadOnlyList<Order>> ListDeletedAsync(CancellationToken cancellationToken) =>
+        orders.ListDeletedAsync(cancellationToken);
+
+    public async Task DeleteAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await orders.SoftDeleteAsync(id, cancellationToken))
+            throw ApiError.NotFound("Order not found.");
+    }
+
+    public async Task RestoreAsync(string id, CancellationToken cancellationToken)
+    {
+        if (!await orders.RestoreAsync(id, cancellationToken))
+            throw ApiError.NotFound("Deleted order not found.");
+    }
 
     public async Task<Order> UpdateStatusAsync(
         string id, UpdateOrderStatusRequest request, CancellationToken cancellationToken)

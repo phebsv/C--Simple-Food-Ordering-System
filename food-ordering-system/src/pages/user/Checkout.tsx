@@ -11,9 +11,17 @@ import "./Checkout.css";
 type WalletProvider = "gcash" | "maya";
 type CardPaymentMethod = "credit-card" | "debit-card";
 
+const PAYMENT_OPTIONS = [
+  { value: "cash", label: "Cash on Delivery", hint: "Pay the rider when your food arrives", icon: "₱" },
+  { value: "gcash", label: "GCash", hint: "Pay with your GCash wallet", icon: "G" },
+  { value: "maya", label: "Maya", hint: "Pay with your Maya wallet", icon: "M" },
+  { value: "credit-card", label: "Credit Card", hint: "Visa, Mastercard and more", icon: "▭" },
+  { value: "debit-card", label: "Debit Card", hint: "Pay directly from your bank", icon: "▭" },
+] as const;
+
 export default function Checkout() {
   const { customer } = useAuth();
-  const { items, total, reloadCart } = useCart();
+  const { items, total, itemCount, reloadCart } = useCart();
   const navigate = useNavigate();
 
   // Pre-fill delivery details from the customer's profile.
@@ -298,25 +306,53 @@ export default function Checkout() {
               </div>
 
               <div className="form-section-group">
-                <h3 className="form-section-title">Payment</h3>
-                <div className="checkout-form-group">
-                  <label htmlFor="checkout-payment">Payment Method *</label>
-                  <select
-                    id="checkout-payment"
-                    value={paymentMethod}
-                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
-                    disabled={loading}
-                    required
-                  >
-                    <option value="" disabled>
-                      Select a payment method
-                    </option>
-                    <option value="credit-card">Credit Card</option>
-                    <option value="debit-card">Debit Card</option>
-                    <option value="gcash">GCash</option>
-                    <option value="maya">Maya</option>
-                    <option value="cash">Cash on Delivery</option>
-                  </select>
+                <h3 className="form-section-title" id="payment-method-label">
+                  Payment Method *
+                </h3>
+                <p className="form-section-helper">Choose how you want to pay.</p>
+                <div
+                  className="payment-options"
+                  role="radiogroup"
+                  aria-labelledby="payment-method-label"
+                >
+                  {PAYMENT_OPTIONS.map((option) => {
+                    const selected = paymentMethod === option.value;
+                    const confirmed =
+                      selected &&
+                      (walletConfirmedFor === option.value || cardConfirmedFor === option.value);
+                    const needsDetails = option.value !== "cash";
+                    return (
+                      <label
+                        key={option.value}
+                        className={`payment-option${selected ? " payment-option-selected" : ""}`}
+                      >
+                        <input
+                          type="radio"
+                          name="payment-method"
+                          value={option.value}
+                          checked={selected}
+                          onChange={() => handlePaymentMethodChange(option.value)}
+                          // Re-open the details form when the selected wallet/card is clicked again.
+                          onClick={() => {
+                            if (selected && needsDetails) handlePaymentMethodChange(option.value);
+                          }}
+                          disabled={loading}
+                        />
+                        <span className="payment-option-icon" aria-hidden="true">
+                          {option.icon}
+                        </span>
+                        <span className="payment-option-text">
+                          <span className="payment-option-label">{option.label}</span>
+                          <span className="payment-option-hint">
+                            {confirmed ? "Details confirmed · click to edit" : option.hint}
+                          </span>
+                        </span>
+                        <span className="payment-option-check" aria-hidden="true">
+                          {selected ? "✓" : ""}
+                        </span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -335,41 +371,41 @@ export default function Checkout() {
             <div className="checkout-summary-section">
               <h2>Order Summary</h2>
 
-              <div className="summary-items">
-                {items.length === 0 ? (
-                  <p className="summary-empty">Your cart is empty</p>
-                ) : (
-                  <>
+              {items.length === 0 ? (
+                <p className="summary-empty">Your cart is empty</p>
+              ) : (
+                <table className="summary-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Item</th>
+                      <th scope="col" className="summary-num">Qty</th>
+                      <th scope="col" className="summary-num">Price</th>
+                      <th scope="col" className="summary-num">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {items.map((item) => (
-                      <div key={item.id} className="summary-item">
-                        <div className="summary-item-info">
-                          <h4>{item.name}</h4>
-                          <p>Qty: {item.quantity}</p>
-                        </div>
-                        <div className="summary-item-price">
+                      <tr key={item.id}>
+                        <td className="summary-item-name">{item.name}</td>
+                        <td className="summary-num">{item.quantity}</td>
+                        <td className="summary-num summary-muted">{formatPricePHP(item.price)}</td>
+                        <td className="summary-num summary-amount">
                           {formatPricePHP(item.price * item.quantity)}
-                        </div>
-                      </div>
+                        </td>
+                      </tr>
                     ))}
-                  </>
-                )}
-              </div>
+                  </tbody>
+                </table>
+              )}
 
-              <div className="summary-divider"></div>
-
-              <div className="summary-total">
-                <div className="summary-row">
-                  <span>Subtotal:</span>
-                  <span>{formatPricePHP(total)}</span>
+              <div className="checkout-total">
+                <div>
+                  <span className="checkout-total-label">Total</span>
+                  <span className="checkout-total-count">
+                    {itemCount} item{itemCount === 1 ? "" : "s"}
+                  </span>
                 </div>
-                <div className="summary-row">
-                  <span>Delivery:</span>
-                  <span>Free</span>
-                </div>
-                <div className="summary-row summary-row-total">
-                  <span>Total:</span>
-                  <span>{formatPricePHP(total)}</span>
-                </div>
+                <span className="checkout-total-amount">{formatPricePHP(total)}</span>
               </div>
             </div>
           </div>

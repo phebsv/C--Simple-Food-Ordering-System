@@ -14,6 +14,11 @@ public sealed class MenuController(IMenuService menu) : ControllerBase
         [FromQuery] string? category, [FromQuery] string? search, CancellationToken ct) =>
         Ok(await menu.ListAsync(category, search, ct));
 
+    [Authorize(Policy = AccessPolicies.Administrator)]
+    [HttpGet("deleted")]
+    public async Task<IActionResult> ListDeleted(CancellationToken ct) =>
+        Ok(await menu.ListDeletedAsync(ct));
+
     [HttpGet("{id}")]
     public async Task<IActionResult> Get([FromRoute] string id, CancellationToken ct) =>
         Ok(await menu.GetAsync(id, ct));
@@ -37,6 +42,14 @@ public sealed class MenuController(IMenuService menu) : ControllerBase
     public async Task<IActionResult> Delete([FromRoute] string id, CancellationToken ct)
     {
         await menu.DeleteAsync(id, ct);
+        return NoContent();
+    }
+
+    [Authorize(Policy = AccessPolicies.Administrator)]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore([FromRoute] string id, CancellationToken ct)
+    {
+        await menu.RestoreAsync(id, ct);
         return NoContent();
     }
 }
