@@ -15,6 +15,7 @@ type CategoryFilter =
   | "Drinks"
   | "Snacks"
   | "Desserts"
+  | "Available"
   | "Unavailable";
 
 interface FormData {
@@ -75,9 +76,11 @@ export default function AdminMenu() {
         .includes(searchQuery.toLowerCase());
       const matchesCategory =
         categoryFilter === "All" ||
-        (categoryFilter === "Unavailable"
-          ? item.available !== true
-          : item.category === categoryFilter);
+        (categoryFilter === "Available"
+          ? item.available === true
+          : categoryFilter === "Unavailable"
+            ? item.available !== true
+            : item.category === categoryFilter);
       return matchesSearch && matchesCategory;
     });
   }, [menuItems, searchQuery, categoryFilter]);
@@ -194,6 +197,7 @@ export default function AdminMenu() {
     "Drinks",
     "Snacks",
     "Desserts",
+    "Available",
     "Unavailable",
   ];
 
